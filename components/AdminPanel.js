@@ -1,8 +1,9 @@
 // components/AdminPanel.js
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import LinkForm from './LinkForm';
+import DefaultLinkSettingsModal from './DefaultLinkSettingsModal';
 
 export default function AdminPanel({ links, setLinks, adSettings, setAdSettings }) {
   const [showForm, setShowForm] = useState(false);
@@ -25,7 +26,7 @@ export default function AdminPanel({ links, setLinks, adSettings, setAdSettings 
         const response = await fetch(`/api/links/${id}`, {
           method: 'DELETE'
         });
-        
+
         if (response.ok) {
           // Update local state
           const updatedLinks = links.filter(link => link.backend_id !== id);
@@ -43,7 +44,7 @@ export default function AdminPanel({ links, setLinks, adSettings, setAdSettings 
   const handleSave = async (itemData) => {
     try {
       let response;
-      
+
       if (editingItem) {
         // Update existing item
         response = await fetch(`/api/links/${editingItem.backend_id}`, {
@@ -63,13 +64,13 @@ export default function AdminPanel({ links, setLinks, adSettings, setAdSettings 
           body: JSON.stringify(itemData),
         });
       }
-      
+
       if (response.ok) {
         const updatedItem = await response.json();
-        
+
         if (editingItem) {
           // Update existing item in state
-          const updatedLinks = links.map(link => 
+          const updatedLinks = links.map(link =>
             link.backend_id === updatedItem.backend_id ? updatedItem : link
           );
           setLinks(updatedLinks);
@@ -77,7 +78,7 @@ export default function AdminPanel({ links, setLinks, adSettings, setAdSettings 
           // Add new item to state
           setLinks([updatedItem, ...links]);
         }
-        
+
         setShowForm(false);
       } else {
         alert('Gagal menyimpan konten');
@@ -97,7 +98,7 @@ export default function AdminPanel({ links, setLinks, adSettings, setAdSettings 
         },
         body: JSON.stringify(newAdSettings),
       });
-      
+
       if (response.ok) {
         const updatedSettings = await response.json();
         setAdSettings({
@@ -124,7 +125,7 @@ export default function AdminPanel({ links, setLinks, adSettings, setAdSettings 
             method: 'DELETE'
           });
         }
-        
+
         // Reset ad settings
         await fetch('/api/ad-settings', {
           method: 'POST',
@@ -138,11 +139,11 @@ export default function AdminPanel({ links, setLinks, adSettings, setAdSettings 
             enabled: false
           }),
         });
-        
+
         // Update local state
         setLinks([]);
         setAdSettings({ enabled: false });
-        
+
         // Clear localStorage
         localStorage.removeItem('clickedLinks');
       } catch (error) {
@@ -197,6 +198,36 @@ export default function AdminPanel({ links, setLinks, adSettings, setAdSettings 
     }
   };
 
+  const [showDefaultLinkSettings, setShowDefaultLinkSettings] = useState(false);
+
+  const handleSaveDefaultLink = async (defaultLinkData) => {
+    try {
+      const response = await fetch('/api/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          setting_key: 'defaultLink',
+          setting_value: defaultLinkData
+        }),
+      });
+
+      if (response.ok) {
+        alert('Pengaturan link default berhasil disimpan!');
+        setShowDefaultLinkSettings(false);
+        return true;
+      } else {
+        alert('Gagal menyimpan pengaturan link default');
+        return false;
+      }
+    } catch (error) {
+      console.error('Error saving default link settings:', error);
+      alert('Terjadi kesalahan saat menyimpan pengaturan link default');
+      return false;
+    }
+  };
+
   return (
     <main className="w-full max-w-6xl mx-auto">
       <header className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -207,6 +238,15 @@ export default function AdminPanel({ links, setLinks, adSettings, setAdSettings 
             className="px-6 py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-medium shadow-lg transition-all duration-200 hover:shadow-xl hover:scale-105 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:ring-offset-slate-900"
           >
             Tambah Konten Baru
+          </button>
+          <button
+            onClick={() => setShowDefaultLinkSettings(true)}
+            className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium shadow-lg transition-all duration-200 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2 focus:ring-offset-slate-900"
+          >
+            <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
+            </svg>
+            Link Default
           </button>
           <button
             onClick={() => setShowAdSettings(true)}
@@ -245,7 +285,7 @@ export default function AdminPanel({ links, setLinks, adSettings, setAdSettings 
           onChangePassword={handleChangePassword}
         />
       )}
-      
+
       {adSettings.enabled ? (
         <div className="admin-card rounded-xl p-5 border border-green-700 bg-green-900/20 mb-4">
           <div className="flex items-center">
@@ -409,7 +449,7 @@ export default function AdminPanel({ links, setLinks, adSettings, setAdSettings 
 
       {/* Link Form Modal */}
       {showForm && (
-        <LinkForm 
+        <LinkForm
           item={editingItem}
           onSave={handleSave}
           onClose={() => setShowForm(false)}
@@ -418,16 +458,24 @@ export default function AdminPanel({ links, setLinks, adSettings, setAdSettings 
 
       {/* Ad Settings Modal */}
       {showAdSettings && (
-        <AdSettingsModal 
+        <AdSettingsModal
           adSettings={adSettings}
           onSave={handleAdSettingsChange}
           onClose={() => setShowAdSettings(false)}
         />
       )}
 
+      {/* Default Link Settings Modal */}
+      {showDefaultLinkSettings && (
+        <DefaultLinkSettingsModal
+          onSave={handleSaveDefaultLink}
+          onClose={() => setShowDefaultLinkSettings(false)}
+        />
+      )}
+
       {/* Clear All Data Button */}
       <div className="mt-6 text-center">
-        <button 
+        <button
           onClick={handleClearAll}
           className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium"
         >
@@ -639,7 +687,7 @@ function ChangePasswordModal({ onClose, onChangePassword }) {
                 type="button"
                 onClick={onClose}
                 disabled={loading}
-                className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-slate-100 rounded-lg font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-slate-500"
+                className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-slate-100 rounded-lg font-medium transition-colors duration-200 focus:ring-2 focus:ring-slate-500"
               >
                 Batal
               </button>
