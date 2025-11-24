@@ -1,8 +1,0 @@
-{
-  "/_not-found/page": "app/_not-found/page.js",
-  "/api/ad-settings/route": "app/api/ad-settings/route.js",
-  "/api/links/[id]/route": "app/api/links/[id]/route.js",
-  "/api/links/route": "app/api/links/route.js",
-  "/_global-error/page": "app/_global-error/page.js",
-  "/page": "app/page.js"
-}

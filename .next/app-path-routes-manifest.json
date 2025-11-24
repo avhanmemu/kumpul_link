@@ -1,8 +1,0 @@
-{
-  "/_not-found/page": "/_not-found",
-  "/api/ad-settings/route": "/api/ad-settings",
-  "/api/links/[id]/route": "/api/links/[id]",
-  "/api/links/route": "/api/links",
-  "/_global-error/page": "/_global-error",
-  "/page": "/"
-}

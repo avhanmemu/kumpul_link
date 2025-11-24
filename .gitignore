@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+.next/
+dist/
+out/
+
+# Database
+*.db
+*.db-journal
+
+# Environment
+.env
+.env.local
+.env.production
+.env.development
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Next.js specific
+.next/cache/
+.next/dev/
+.next/standalone/
+.next/server/
+.next/static/
+.next/*.json
+.next/*.js
+.next/*.map
+.next/*.css
+
+# Temporary files
+*.tmp
+*.temp

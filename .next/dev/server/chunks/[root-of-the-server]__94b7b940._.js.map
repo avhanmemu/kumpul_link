@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 46, "column": 0}, "map": {"version":3,"sources":["file:///home/avhan3/Dokumen/PROGRAM/CANVA/KumpulLink/app/api/auth/logout/route.js"],"sourcesContent":["// app/api/auth/logout/route.js\nimport { NextResponse } from 'next/server';\n\nexport async function POST() {\n  try {\n    const response = NextResponse.json({ success: true, message: 'Logout berhasil' });\n    response.cookies.set('admin_logged_in', '', {\n      httpOnly: true,\n      secure: process.env.NODE_ENV === 'production',\n      maxAge: 0, // Hapus cookie\n      path: '/',\n      sameSite: 'strict',\n    });\n    \n    return response;\n  } catch (error) {\n    return NextResponse.json({ success: false, message: 'Terjadi kesalahan' }, { status: 500 });\n  }\n}"],"names":[],"mappings":"AAAA,+BAA+B;;;;;AAC/B;;AAEO,eAAe;IACpB,IAAI;QACF,MAAM,WAAW,gJAAY,CAAC,IAAI,CAAC;YAAE,SAAS;YAAM,SAAS;QAAkB;QAC/E,SAAS,OAAO,CAAC,GAAG,CAAC,mBAAmB,IAAI;YAC1C,UAAU;YACV,QAAQ,oDAAyB;YACjC,QAAQ;YACR,MAAM;YACN,UAAU;QACZ;QAEA,OAAO;IACT,EAAE,OAAO,OAAO;QACd,OAAO,gJAAY,CAAC,IAAI,CAAC;YAAE,SAAS;YAAO,SAAS;QAAoB,GAAG;YAAE,QAAQ;QAAI;IAC3F;AACF"}}]
-}
