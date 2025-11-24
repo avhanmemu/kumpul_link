@@ -7,10 +7,10 @@ export async function POST(request) {
     const body = await request.json();
     const { password } = body;
 
-    const db = await initDB();
-    const admin = await db.get('SELECT id, password FROM admin LIMIT 1');
+    // Verify password against environment variable or default
+    const expectedPassword = process.env.ADMIN_PASSWORD || 'admin123';
 
-    if (!admin || admin.password !== password) {
+    if (password !== expectedPassword) {
       return NextResponse.json({ success: false, message: 'Password salah' }, { status: 401 });
     }
 
@@ -26,6 +26,7 @@ export async function POST(request) {
 
     return response;
   } catch (error) {
+    console.error('Login error:', error);
     return NextResponse.json({ success: false, message: 'Terjadi kesalahan' }, { status: 500 });
   }
 }
