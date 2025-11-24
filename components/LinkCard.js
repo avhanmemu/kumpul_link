@@ -1,0 +1,166 @@
+// components/LinkCard.js
+'use client';
+
+import { useState } from 'react';
+
+export default function LinkCard({ link, adSettings, clickedLinks, setClickedLinks }) {
+  const [showAdModal, setShowAdModal] = useState(false);
+  const [isFirstClick, setIsFirstClick] = useState(!clickedLinks.has(link.backend_id));
+  const [clickCount, setClickCount] = useState(link.click_count || 0);
+
+  const handleLinkClick = async (e) => {
+    // Prevent default behavior only if it's the card that was clicked, not the link inside
+    if (e.target.tagName !== 'A' && !e.target.closest('a')) {
+      e.preventDefault();
+
+      // Check if ads are enabled and this is the first click
+      if (adSettings.enabled && isFirstClick) {
+        // Show ad modal
+        setShowAdModal(true);
+
+        // Mark as clicked
+        const newClickedLinks = new Set(clickedLinks);
+        newClickedLinks.add(link.backend_id);
+        setClickedLinks(newClickedLinks);
+        localStorage.setItem('clickedLinks', JSON.stringify([...newClickedLinks]));
+        setIsFirstClick(false);
+      } else {
+        // Track click via API and update local state
+        try {
+          const response = await fetch(`/api/links/${link.backend_id}/click`, {
+            method: 'POST',
+          });
+
+          if (response.ok) {
+            const updatedLink = await response.json();
+            setClickCount(updatedLink.click_count || 0);
+          }
+        } catch (error) {
+          console.error('Error tracking click:', error);
+        }
+
+        // Open the link
+        window.open(link.link_url, '_blank', 'noopener,noreferrer');
+      }
+    }
+  };
+
+  const handleAdSkip = async () => {
+    // Track click via API and update local state
+    try {
+      const response = await fetch(`/api/links/${link.backend_id}/click`, {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        const updatedLink = await response.json();
+        setClickCount(updatedLink.click_count || 0);
+      }
+    } catch (error) {
+      console.error('Error tracking click:', error);
+    }
+
+    setShowAdModal(false);
+    window.open(link.link_url, '_blank', 'noopener,noreferrer');
+  };
+
+  const getIconElement = () => {
+    if (link.icon_image) {
+      return (
+        <img
+          src={link.icon_image}
+          alt={`${link.title} icon`}
+          className="w-full h-full object-cover"
+          onError={(e) => {
+            e.target.onerror = null;
+            e.target.src = `data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik00IDE2bDQuNTg2LTQuNTg2YTIgMiAwIDAwMi44MjggMEwxNiAxNm0tMi0yTDEzLjU4NiAxMi40MTRhMiAyIDAgMDAyLjgyOCAwTDE5IDE0bS02LTZoLjAxTTUuOTc0IDE5aDEyYTIgMiAwIDAxMi0yVjZhMiAyIDAgMDEtMi0yaC0xMmEyIDIgMCAwMS0yIDJ2MTJhMiAyIDAgMDEyIDJ6Ij48L3BhdGg+PC9zdmc+`;
+          }}
+        />
+      );
+    } else {
+      return (
+        <div className="w-full h-full bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center">
+          <svg className="w-full h-full text-white p-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
+          </svg>
+        </div>
+      );
+    }
+  };
+
+  return (
+    <article
+      className="public-card flex flex-col rounded-2xl overflow-hidden shadow-xl transition-transform duration-200 hover:scale-105 cursor-pointer"
+      onClick={handleLinkClick}
+    >
+      <div className="w-full h-48 flex items-center justify-center overflow-hidden rounded-xl">
+        {getIconElement()}
+      </div>
+      <div className="card-content p-5 flex-1 flex flex-col justify-between">
+        <h3 className="card-title font-semibold text-slate-100 mb-3">{link.title}</h3>
+        <div className="flex justify-between items-center">
+          <a
+            href={link.link_url}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation(); // Prevent event from bubbling to parent
+              handleLinkClick(e);
+            }}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="card-link inline-flex items-center gap-2 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-800 rounded px-1 py-1"
+          >
+            {link.link_label}
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path>
+            </svg>
+          </a>
+          <div className="flex items-center text-sm text-slate-400">
+            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+            </svg>
+            {clickCount} kali
+          </div>
+        </div>
+      </div>
+
+      {/* Ad Modal */}
+      {showAdModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-auto relative">
+            <button
+              className="absolute top-3 right-3 text-gray-500 hover:text-gray-800 text-2xl"
+              onClick={() => setShowAdModal(false)}
+            >
+              &times;
+            </button>
+            <div className="p-6">
+              <div className="text-center mb-4">
+                <h3 className="text-xl font-bold text-gray-800">Iklan</h3>
+                <p className="text-gray-600">Terima kasih telah mendukung kami</p>
+              </div>
+              <div className="ad-content-container h-64 bg-gray-100 rounded-lg flex items-center justify-center mb-4">
+                {adSettings.adCode ? (
+                  <div dangerouslySetInnerHTML={{ __html: adSettings.adCode }} />
+                ) : (
+                  <div className="text-center text-gray-500">
+                    Iklan Adstera Zone: {adSettings.zoneName || adSettings.zoneId}
+                  </div>
+                )}
+              </div>
+              <div className="text-center">
+                <button
+                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                  onClick={handleAdSkip}
+                >
+                  Lanjut ke Tautan ({link.link_url})
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </article>
+  );
+}

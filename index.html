@@ -1,0 +1,1121 @@
+<!doctype html>
+<html lang="id">
+ <head>
+  <meta charset="UTF-8">
+  <title>Kelola Konten Lengkap</title>
+  <!-- Tailwind CSS CDN - NOTE: For production, install Tailwind as a PostCSS plugin or use the Tailwind CLI -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Canva SDKs -->
+  <script src="./_sdk/element_sdk.js"></script>
+  <script src="./_sdk/data_sdk.js"></script>
+  <style>
+    body {
+      box-sizing: border-box;
+    }
+
+    .loading-spinner {
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top: 3px solid white;
+      width: 20px;
+      height: 20px;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 12px 20px;
+      border-radius: 8px;
+      color: white;
+      font-weight: 500;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: all 0.3s ease;
+      z-index: 1000;
+      max-width: 300px;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .toast.success {
+      background-color: #10b981;
+    }
+
+    .toast.error {
+      background-color: #ef4444;
+    }
+
+    .view-hidden {
+      display: none;
+    }
+  </style>
+  <script>
+    let allContentData = [];
+    let editingItemId = null;
+    let currentView = 'public'; // 'public' atau 'admin'
+
+    // Konfigurasi default
+    const defaultConfig = {
+      background_color: "#0f172a",
+      surface_color: "#1e293b",
+      text_color: "#e5e7eb",
+      primary_action_color: "#38bdf8",
+      secondary_action_color: "#64748b",
+      font_family: "system-ui",
+      font_size: 16,
+      public_title: "Daftar Konten Pilihan",
+      public_subtitle: "Kumpulkan link penting Anda dalam satu tampilan rapi dan mudah diakses.",
+      admin_title: "Kelola Konten",
+      add_button_text: "Tambah Konten Baru",
+      empty_state_text: "Belum ada konten. Klik tombol di atas untuk menambah konten pertama Anda.",
+      footer_text: "Sesuaikan teks dan warna dari panel edit di Canva."
+    };
+
+    function getConfigValue(config, key) {
+      if (config && config[key] !== undefined && config[key] !== null && config[key] !== "") {
+        return config[key];
+      }
+      return defaultConfig[key];
+    }
+
+    // Toast notification
+    function showToast(message, type = 'success') {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = `toast ${type}`;
+      setTimeout(() => toast.classList.add('show'), 10);
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+
+    // Toggle view
+    function toggleView() {
+      currentView = currentView === 'public' ? 'admin' : 'public';
+
+      const publicView = document.getElementById('public-view');
+      const adminView = document.getElementById('admin-view');
+      const toggleBtn = document.getElementById('toggle-view-btn');
+
+      if (currentView === 'admin') {
+        publicView.classList.add('view-hidden');
+        adminView.classList.remove('view-hidden');
+        toggleBtn.innerHTML =
+          '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+            '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>' +
+            '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>' +
+          '</svg>' +
+          '<span>Lihat Publik</span>';
+      } else {
+        publicView.classList.remove('view-hidden');
+        adminView.classList.add('view-hidden');
+        toggleBtn.innerHTML =
+          '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+            '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>' +
+            '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>' +
+          '</svg>' +
+          '<span>Kelola Admin</span>';
+      }
+    }
+
+    // Load data from localStorage
+    function loadAllContentData() {
+      const storedData = localStorage.getItem('allContentData');
+      allContentData = storedData ? JSON.parse(storedData) : [];
+      renderPublicView();
+      renderAdminView();
+    }
+
+    // Save data to localStorage
+    function saveAllContentData() {
+      localStorage.setItem('allContentData', JSON.stringify(allContentData));
+    }
+
+    // Load ad settings from localStorage
+    function loadAdSettings() {
+      const adSettings = localStorage.getItem('adSettings');
+      return adSettings ? JSON.parse(adSettings) : {
+        enabled: false,
+        zoneName: '',
+        zoneId: '',
+        adCode: ''
+      };
+    }
+
+    // Save ad settings to localStorage
+    function saveAdSettings(settings) {
+      localStorage.setItem('adSettings', JSON.stringify(settings));
+    }
+
+    // Display ad settings in the form
+    function populateAdSettingsForm() {
+      const settings = loadAdSettings();
+      document.getElementById('ad-zone-name').value = settings.zoneName || '';
+      document.getElementById('ad-zone-id').value = settings.zoneId || '';
+      document.getElementById('ad-code').value = settings.adCode || '';
+      document.getElementById('enable-ads').checked = settings.enabled;
+    }
+
+    // Show ad settings form
+    function showAdSettings() {
+      populateAdSettingsForm();
+      document.getElementById('admin-view').classList.remove('view-hidden');
+      document.getElementById('ad-management-section').style.display = 'block';
+    }
+
+    // Hide ad settings form
+    function hideAdSettings() {
+      document.getElementById('ad-management-section').style.display = 'none';
+    }
+
+    // Handle ad settings form submission
+    async function handleAdSettingsSubmit(event) {
+      event.preventDefault();
+
+      const submitBtn = document.querySelector('#ad-settings-form button[type="submit"]');
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<div class="loading-spinner mx-auto"></div>';
+
+      const settings = {
+        zoneName: document.getElementById('ad-zone-name').value.trim(),
+        zoneId: document.getElementById('ad-zone-id').value.trim(),
+        adCode: document.getElementById('ad-code').value.trim(),
+        enabled: document.getElementById('enable-ads').checked
+      };
+
+      try {
+        saveAdSettings(settings);
+        showToast('Pengaturan iklan berhasil disimpan', 'success');
+        // Refresh ad display if needed
+        refreshAdDisplay();
+      } catch (error) {
+        showToast('Gagal menyimpan pengaturan iklan', 'error');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Simpan Pengaturan';
+      }
+    }
+
+    // Track which links have been clicked (to determine ad vs direct link behavior)
+    function getClickedLinks() {
+      const clickedLinks = localStorage.getItem('clickedLinks');
+      return clickedLinks ? JSON.parse(clickedLinks) : [];
+    }
+
+    function setClickedLink(itemId) {
+      const clickedLinks = getClickedLinks();
+      if (!clickedLinks.includes(itemId)) {
+        clickedLinks.push(itemId);
+        localStorage.setItem('clickedLinks', JSON.stringify(clickedLinks));
+      }
+    }
+
+    function hasLinkBeenClicked(itemId) {
+      const clickedLinks = getClickedLinks();
+      return clickedLinks.includes(itemId);
+    }
+
+    // Refresh ad display in public view
+    function refreshAdDisplay() {
+      // This function would update the public view to show/hide ads based on settings
+      renderPublicView();
+    }
+
+    // Clear all data from localStorage (for testing purposes)
+    function clearAllData() {
+      if (confirm('Apakah Anda yakin ingin menghapus semua data? Tindakan ini tidak dapat dibatalkan.')) {
+        localStorage.removeItem('allContentData');
+        localStorage.removeItem('adSettings');
+        localStorage.removeItem('clickedLinks');
+        allContentData = [];
+        renderPublicView();
+        renderAdminView();
+        showToast('Semua data berhasil dihapus', 'success');
+      }
+    }
+
+    async function initDataSdk() {
+      // Load data from localStorage on initialization
+      loadAllContentData();
+      // Load ad settings as well
+      const adSettings = loadAdSettings();
+    }
+
+    // Render Public View
+    function renderPublicView() {
+      const container = document.getElementById('public-content-list');
+      const emptyState = document.getElementById('public-empty-state');
+
+      if (allContentData.length === 0) {
+        container.innerHTML = '';
+        emptyState.style.display = 'block';
+        return;
+      }
+
+      emptyState.style.display = 'none';
+      container.innerHTML = '';
+
+      // Load ad settings
+      const adSettings = loadAdSettings();
+
+      // Add ad container at the top if ads are enabled
+      if (adSettings.enabled) {
+        const adContainer = createAdContainer(adSettings);
+        container.appendChild(adContainer);
+      }
+
+      allContentData.forEach((item) => {
+        const card = createPublicCard(item);
+        container.appendChild(card);
+
+        // Optionally add ads between items (every 3-4 items)
+        const index = allContentData.indexOf(item);
+        if (adSettings.enabled && (index + 1) % 4 === 0) { // Show ad every 4 items
+          const midAdContainer = createAdContainer(adSettings);
+          container.appendChild(midAdContainer);
+        }
+      });
+
+      // Add ad container at the bottom if ads are enabled
+      if (adSettings.enabled && allContentData.length > 3) {
+        const bottomAdContainer = createAdContainer(adSettings);
+        container.appendChild(bottomAdContainer);
+      }
+    }
+
+    // Create ad container element
+    function createAdContainer(adSettings) {
+      const adContainer = document.createElement('div');
+      adContainer.className = 'ad-container my-6 p-4 rounded-xl bg-slate-800 border border-slate-700';
+
+      // Use Adstera ad code if provided, otherwise show placeholder
+      if (adSettings.adCode) {
+        adContainer.innerHTML = '<div class="ad-content">' + adSettings.adCode + '</div>';
+      } else if (adSettings.zoneId) {
+        // Create Adstera script tag using zone ID
+        const zoneDisplay = escapeHtml(adSettings.zoneName || adSettings.zoneId);
+        adContainer.innerHTML = '<div class="ad-content flex items-center justify-center h-64 bg-slate-700 rounded-lg">' +
+          '<div class="text-center p-4">' +
+            '<div class="text-slate-400 text-sm mb-2">Iklan dari Adstera</div>' +
+            '<div class="text-slate-500 text-xs">Zona: ' + zoneDisplay + '</div>' +
+          '</div>' +
+          '<script async src="https://app.traffective.com/smartslider/served/ads.js?zone=' + escapeHtml(adSettings.zoneId) + '"><\\/script>' +
+        '</div>';
+      } else {
+        // Show placeholder if no ad settings
+        adContainer.innerHTML = '<div class="ad-placeholder flex items-center justify-center h-64 bg-slate-700 rounded-lg">' +
+          '<div class="text-center p-4">' +
+            '<div class="text-slate-500 text-sm">Iklan Adstera</div>' +
+            '<div class="text-slate-600 text-xs mt-1">Silakan atur zona iklan di panel admin</div>' +
+          '</div>' +
+        '</div>';
+      }
+
+      return adContainer;
+    }
+
+    function createPublicCard(item) {
+      const card = document.createElement('article');
+      card.className = 'public-card flex flex-col rounded-2xl overflow-hidden shadow-xl transition-transform duration-200 hover:scale-105';
+
+      card.innerHTML =
+        '<div class="w-full h-48 flex items-center justify-center overflow-hidden rounded-xl">' +
+          getIconElement(item, 'public') +
+        '</div>' +
+        '<div class="card-content p-5 flex-1 flex flex-col justify-between">' +
+          '<h3 class="card-title font-semibold text-slate-100 mb-3">' + escapeHtml(item.title) + '</h3>' +
+          '<a ' +
+            'data-link-url="' + escapeHtml(item.link_url) + '" ' +
+            'data-item-id="' + escapeHtml(item.__backendId) + '" ' +
+            'class="card-link inline-flex items-center gap-2 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-800 rounded px-1 py-1 sponsored-link"' +
+            'href="javascript:void(0)" ' +
+          '>' +
+            escapeHtml(item.link_label) +
+            '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+              '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>' +
+            '</svg>' +
+          '</a>' +
+        '</div>';
+
+      return card;
+    }
+
+    // Render Admin View
+    function renderAdminView() {
+      const container = document.getElementById('admin-content-list');
+      const emptyState = document.getElementById('admin-empty-state');
+
+      if (allContentData.length === 0) {
+        container.innerHTML = '';
+        emptyState.style.display = 'block';
+        return;
+      }
+
+      emptyState.style.display = 'none';
+      container.innerHTML = '';
+
+      // Add ad status indicator at the top
+      const adSettings = loadAdSettings();
+      if (adSettings.enabled) {
+        const adStatusCard = document.createElement('div');
+        adStatusCard.className = 'admin-card rounded-xl p-5 border border-green-700 bg-green-900/20 mb-4';
+        adStatusCard.innerHTML =
+          '<div class="flex items-center">' +
+            '<div class="flex-shrink-0 w-10 h-10 rounded-lg bg-green-800 flex items-center justify-center mr-4">' +
+              '<svg class="w-5 h-5 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+                '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-5 5v-5zM11.536 4.464a2 2 0 00-2.828 0l-6.5 6.5a2 2 0 000 2.828l6.5 6.5a2 2 0 002.828 0l6.5-6.5a2 2 0 000-2.828l-6.5-6.5z"></path>' +
+              '</svg>' +
+            '</div>' +
+            '<div class="flex-1 min-w-0">' +
+              '<h3 class="font-semibold text-green-300">Iklan Aktif</h3>' +
+              '<p class="text-sm text-green-200">Zona iklan: ' + escapeHtml(adSettings.zoneName || adSettings.zoneId) + '</p>' +
+            '</div>' +
+          '</div>';
+        container.appendChild(adStatusCard);
+      } else {
+        const adStatusCard = document.createElement('div');
+        adStatusCard.className = 'admin-card rounded-xl p-5 border border-yellow-700 bg-yellow-900/20 mb-4';
+        adStatusCard.innerHTML =
+          '<div class="flex items-center">' +
+            '<div class="flex-shrink-0 w-10 h-10 rounded-lg bg-yellow-800 flex items-center justify-center mr-4">' +
+              '<svg class="w-5 h-5 text-yellow-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+                '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>' +
+              '</svg>' +
+            '</div>' +
+            '<div class="flex-1 min-w-0">' +
+              '<h3 class="font-semibold text-yellow-300">Iklan Nonaktif</h3>' +
+              '<p class="text-sm text-yellow-200">Aktifkan iklan dari menu Pengaturan Iklan</p>' +
+            '</div>' +
+          '</div>';
+        container.appendChild(adStatusCard);
+      }
+
+      allContentData.forEach((item) => {
+        const card = createAdminCard(item);
+        container.appendChild(card);
+      });
+    }
+
+    function createAdminCard(item) {
+      const card = document.createElement('div');
+      card.className = 'admin-card rounded-xl p-5 border border-slate-700 transition-all duration-200 hover:border-sky-400';
+
+      card.innerHTML =
+        '<div class="flex items-start gap-4">' +
+          '<div class="flex-shrink-0 w-16 h-16 rounded-lg bg-slate-800 overflow-hidden flex items-center justify-center">' +
+            getIconElement(item, 'admin') +
+          '</div>' +
+          '<div class="flex-1 min-w-0">' +
+            '<h3 class="font-semibold text-lg mb-1 text-slate-100">' + escapeHtml(item.title) + '</h3>' +
+            '<p class="text-sm text-slate-400 mb-2">' + escapeHtml(item.link_label) + '</p>' +
+            '<a href="' + escapeHtml(item.link_url) + '" target="_blank" rel="noopener noreferrer" class="text-sm text-sky-400 hover:text-sky-300 break-all">' +
+              escapeHtml(item.link_url) +
+            '</a>' +
+          '</div>' +
+          '<div class="flex gap-2">' +
+            '<button onclick="editContent(\'' + item.__backendId + '\')" class="edit-btn px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200">' +
+              'Edit' +
+            '</button>' +
+            '<button onclick="deleteContent(\'' + item.__backendId + '\')" class="delete-btn px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200">' +
+              'Hapus' +
+            '</button>' +
+          '</div>' +
+        '</div>';
+
+      return card;
+    }
+
+    function getIconElement(item, context = 'public') {
+      if (item.icon_image) {
+        if (context === 'admin') {
+          // For admin view, use a smaller icon with object-contain to see the full image
+          return '<img src="' + item.icon_image + '" class="w-8 h-8 object-contain" alt="' + escapeHtml(item.title) + ' icon" onerror="this.onerror=null; this.src=\'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik00IDE2bDQuNTg2LTQuNTg2YTIgMiAwIDAwMi44MjggMEwxNiAxNm0tMi0yTDEzLjU4NiAxMi40MTRhMiAyIDAgMDAyLjgyOCAwTDE5IDE0bS02LTZoLjAxTTUuOTc0IDE5aDEyYTIgMiAwIDAxMi0yVjZhMiAyIDAgMDEtMi0yaC0xMmEyIDIgMCAwMS0yIDJ2MTJhMiAyIDAgMDEyIDJ6Ij48L3BhdGg+PC9zdmc+\';">';
+        } else {
+          // For public view, use full size with object-cover
+          return '<img src="' + item.icon_image + '" class="w-full h-full object-cover" alt="' + escapeHtml(item.title) + ' icon" onerror="this.onerror=null; this.src=\'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik00IDE2bDQuNTg2LTQuNTg2YTIgMiAwIDAwMi44MjggMEwxNiAxNm0tMi0yTDEzLjU4NiAxMi40MTRhMiAyIDAgMDAyLjgyOCAwTDE5IDE0bS02LTZoLjAxTTUuOTc0IDE5aDEyYTIgMiAwIDAxMi0yVjZhMiAyIDAgMDEtMi0yaC0xMmEyIDIgMCAwMS0yIDJ2MTJhMiAyIDAgMDEyIDJ6Ij48L3BhdGg+PC9zdmc+\'; this.classList.add(\'bg-gradient-to-br\', \'from-slate-700\', \'to-slate-800\');">';
+        }
+      } else {
+        if (context === 'admin') {
+          // For admin view, use smaller SVG icon
+          return '<div class="w-full h-full bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center">' +
+            '<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+              '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>' +
+            '</svg>' +
+          '</div>';
+        } else {
+          // For public view, use larger SVG with full coverage
+          return '<div class="w-full h-full bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center">' +
+            '<svg class="w-full h-full text-white p-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+              '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>' +
+            '</svg>' +
+          '</div>';
+        }
+      }
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Preview image when selected
+    function previewImage() {
+      const fileInput = document.getElementById('input-icon-image');
+      const previewContainer = document.getElementById('preview-icon-container');
+      const file = fileInput.files[0];
+
+      if (file) {
+        // Check file size (max 2MB)
+        if (file.size > 2 * 1024 * 1024) {
+          showToast('Ukuran file terlalu besar. Maksimal 2MB.', 'error');
+          fileInput.value = '';
+          return;
+        }
+
+        // Check file type
+        if (!file.type.match('image.*')) {
+          showToast('File harus berupa gambar (JPG, PNG, GIF)', 'error');
+          fileInput.value = '';
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          // Clear previous content and add the image with full container fill styling
+          previewContainer.innerHTML = '<img src="' + e.target.result + '" class="w-8 h-8 object-contain" alt="Preview icon">';
+        };
+        reader.readAsDataURL(file);
+      } else {
+        // Reset to default icon if no file selected
+        previewContainer.innerHTML =
+          '<svg class="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+            '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>' +
+          '</svg>';
+      }
+    }
+
+    // Handle sponsored link clicks
+    function handleSponsoredLinkClick(event) {
+      // Use event.target or find the closest sponsored-link element
+      const linkElement = event.target.classList.contains('sponsored-link') ?
+        event.target :
+        event.target.closest('.sponsored-link');
+
+      if (!linkElement) return;
+
+      const linkUrl = linkElement.getAttribute('data-link-url');
+      const itemId = linkElement.getAttribute('data-item-id');
+
+      // Check ad settings
+      const adSettings = loadAdSettings();
+
+      // If ads are enabled and this is the first click on this link
+      if (adSettings.enabled && !hasLinkBeenClicked(itemId)) {
+        // Show ad first
+        if (adSettings.adCode) {
+          // If custom ad code is provided, display it in a modal or new window
+          showAdModal(adSettings, linkUrl);
+        } else if (adSettings.zoneId) {
+          // If zone ID is provided, open it in a new tab/window
+          // First, mark this link as clicked
+          setClickedLink(itemId);
+          // Then open the ad in a new tab and the original link in another tab after a delay
+          showToast('Membuka iklan...', 'success');
+          setTimeout(() => {
+            window.open('https://app.traffective.com/smartslider/served/ads.js?zone=' + adSettings.zoneId, '_blank');
+            window.open(linkUrl, '_blank');
+          }, 1000);
+        } else {
+          // If no ad is configured, just go to the link
+          setClickedLink(itemId);
+          window.open(linkUrl, '_blank');
+        }
+      } else {
+        // For subsequent clicks or if ads are disabled, go directly to the link
+        window.open(linkUrl, '_blank');
+      }
+    }
+
+    // Show ad modal with fallback link
+    function showAdModal(adSettings, nextUrl) {
+      // Create modal for ad display
+      const adModal = document.createElement('div');
+      adModal.id = 'sponsored-ad-modal';
+      adModal.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4';
+      adModal.innerHTML =
+        '<div class="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-auto relative">' +
+          '<button id="close-ad-modal" class="absolute top-3 right-3 text-gray-500 hover:text-gray-800 text-2xl">&times;</button>' +
+          '<div class="p-6">' +
+            '<div class="text-center mb-4">' +
+              '<h3 class="text-xl font-bold text-gray-800">Iklan</h3>' +
+              '<p class="text-gray-600">Terima kasih telah mendukung kami</p>' +
+            '</div>' +
+            '<div class="ad-content-container h-64 bg-gray-100 rounded-lg flex items-center justify-center mb-4">' +
+              (adSettings.adCode || '<div class="text-center text-gray-500">Iklan Adstera Zone: ' + escapeHtml(adSettings.zoneName || adSettings.zoneId) + '</div>') +
+            '</div>' +
+            '<div class="text-center">' +
+              '<button id="skip-ad-btn" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">Lanjut ke Tautan (' + escapeHtml(nextUrl) + ')</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+
+      document.body.appendChild(adModal);
+
+      // Add event listeners for the modal
+      document.getElementById('close-ad-modal').addEventListener('click', () => {
+        document.body.removeChild(adModal);
+        // Open the original link after closing ad
+        window.open(nextUrl, '_blank');
+      });
+
+      document.getElementById('skip-ad-btn').addEventListener('click', () => {
+        document.body.removeChild(adModal);
+        // Mark the link as clicked before navigating
+        const linkElement = document.querySelector(`a[data-link-url="${nextUrl}"]`);
+        if (linkElement) {
+          const itemId = linkElement.getAttribute('data-item-id');
+          if (itemId) setClickedLink(itemId);
+        }
+        window.open(nextUrl, '_blank');
+      });
+    }
+
+    // Add event listener to the file input when DOM is loaded
+    if (document.readyState === "complete" || document.readyState === "interactive") {
+      document.getElementById('input-icon-image')?.addEventListener('change', previewImage);
+      document.getElementById('ad-settings-form')?.addEventListener('submit', handleAdSettingsSubmit);
+      // Add event delegation for sponsored links
+      document.addEventListener('click', function(event) {
+        if (event.target.classList.contains('sponsored-link') || event.target.closest('.sponsored-link')) {
+          const linkElement = event.target.classList.contains('sponsored-link') ? event.target : event.target.closest('.sponsored-link');
+          event.preventDefault();
+          handleSponsoredLinkClick(event);
+        }
+      });
+    } else {
+      document.addEventListener("DOMContentLoaded", function() {
+        document.getElementById('input-icon-image')?.addEventListener('change', previewImage);
+        document.getElementById('ad-settings-form')?.addEventListener('submit', handleAdSettingsSubmit);
+        // Add event delegation for sponsored links
+        document.addEventListener('click', function(event) {
+          if (event.target.classList.contains('sponsored-link') || event.target.closest('.sponsored-link')) {
+            const linkElement = event.target.classList.contains('sponsored-link') ? event.target : event.target.closest('.sponsored-link');
+            event.preventDefault();
+            handleSponsoredLinkClick(event);
+          }
+        });
+      });
+    }
+
+    function showForm() {
+      editingItemId = null;
+      document.getElementById('form-title').textContent = 'Tambah Konten Baru';
+      document.getElementById('content-form').reset();
+      // Reset the preview icon container with proper styling
+      const previewContainer = document.getElementById('preview-icon-container');
+      previewContainer.innerHTML = '';
+      previewContainer.classList.add('flex', 'items-center', 'justify-center');
+      previewContainer.innerHTML =
+        '<svg class="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+          '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>' +
+        '</svg>';
+      document.getElementById('form-modal').style.display = 'flex';
+    }
+
+    function hideForm() {
+      document.getElementById('form-modal').style.display = 'none';
+      editingItemId = null;
+    }
+
+    function editContent(backendId) {
+      const item = allContentData.find(c => c.__backendId === backendId);
+      if (!item) return;
+
+      editingItemId = backendId;
+      document.getElementById('form-title').textContent = 'Edit Konten';
+      document.getElementById('input-title').value = item.title;
+      document.getElementById('input-link-label').value = item.link_label;
+      document.getElementById('input-link-url').value = item.link_url;
+
+      // If item has an icon_image, update the preview (if it's a data URL)
+      if (item.icon_image) {
+        const previewContainer = document.getElementById('preview-icon-container');
+        if (item.icon_image.startsWith('data:')) {
+          previewContainer.innerHTML = '<img src="' + item.icon_image + '" class="w-8 h-8 object-contain" alt="Preview icon">';
+        } else {
+          // If it's a URL, create an img element with the URL
+          previewContainer.innerHTML = '<img src="' + item.icon_image + '" class="w-8 h-8 object-contain" alt="Preview icon">';
+        }
+      }
+      document.getElementById('form-modal').style.display = 'flex';
+    }
+
+    async function deleteContent(backendId) {
+      const item = allContentData.find(c => c.__backendId === backendId);
+      if (!item) return;
+
+      const deleteBtn = event.target;
+      const originalText = deleteBtn.textContent;
+
+      if (deleteBtn.textContent === 'Hapus') {
+        deleteBtn.textContent = 'Yakin?';
+        deleteBtn.style.backgroundColor = '#ef4444';
+        setTimeout(() => {
+          if (deleteBtn.textContent === 'Yakin?') {
+            deleteBtn.textContent = originalText;
+            deleteBtn.style.backgroundColor = '';
+          }
+        }, 3000);
+        return;
+      }
+
+      deleteBtn.disabled = true;
+      deleteBtn.innerHTML = '<div class="loading-spinner mx-auto"></div>';
+
+      // Find and remove the item from the array
+      const itemIndex = allContentData.findIndex(c => c.__backendId === backendId);
+      if (itemIndex !== -1) {
+        allContentData.splice(itemIndex, 1);
+        saveAllContentData(); // Save to localStorage
+        showToast('Konten berhasil dihapus', 'success');
+
+        // Update the views
+        renderPublicView();
+        renderAdminView();
+      } else {
+        showToast('Gagal menghapus konten', 'error');
+      }
+
+      deleteBtn.disabled = false;
+      deleteBtn.textContent = originalText;
+    }
+
+    async function handleFormSubmit(event) {
+      event.preventDefault();
+
+      if (allContentData.length >= 999 && !editingItemId) {
+        showToast('Maksimal 999 konten tercapai. Hapus beberapa konten terlebih dahulu.', 'error');
+        return;
+      }
+
+      const submitBtn = document.getElementById('submit-btn');
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<div class="loading-spinner mx-auto"></div>';
+
+      // Get the selected file for the icon
+      const iconFile = document.getElementById('input-icon-image').files[0];
+      let iconImageData = null;
+
+      if (iconFile) {
+        // Check file size (max 2MB)
+        if (iconFile.size > 2 * 1024 * 1024) {
+          showToast('Ukuran file terlalu besar. Maksimal 2MB.', 'error');
+          submitBtn.disabled = false;
+          submitBtn.textContent = editingItemId ? 'Perbarui' : 'Tambah';
+          return;
+        }
+
+        // Convert the file to a data URL
+        iconImageData = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.readAsDataURL(iconFile);
+        });
+      } else if (!editingItemId) {
+        // If no icon is selected for new item, show an error
+        showToast('Silakan pilih gambar ikon.', 'error');
+        submitBtn.disabled = false;
+        submitBtn.textContent = editingItemId ? 'Perbarui' : 'Tambah';
+        return;
+      }
+
+      const formData = {
+        title: document.getElementById('input-title').value.trim(),
+        link_label: document.getElementById('input-link-label').value.trim(),
+        link_url: document.getElementById('input-link-url').value.trim(),
+        icon_image: iconImageData || (editingItemId ? allContentData.find(c => c.__backendId === editingItemId).icon_image : null),
+        created_at: new Date().toISOString()
+      };
+
+      if (editingItemId) {
+        // Update existing item
+        const itemIndex = allContentData.findIndex(c => c.__backendId === editingItemId);
+        if (itemIndex !== -1) {
+          // Update the existing item
+          allContentData[itemIndex] = { ...allContentData[itemIndex], ...formData };
+          saveAllContentData(); // Save to localStorage
+          showToast('Konten berhasil diperbarui', 'success');
+        }
+      } else {
+        // Create new item
+        const newItem = {
+          ...formData,
+          __backendId: Date.now().toString() + Math.random().toString(36).substr(2, 9) // Generate unique ID
+        };
+        allContentData.push(newItem);
+        saveAllContentData(); // Save to localStorage
+        showToast('Konten berhasil ditambahkan', 'success');
+      }
+
+      // Update the views and hide the form
+      renderPublicView();
+      renderAdminView();
+      hideForm();
+    }
+
+    async function setupElementSdk() {
+      if (!window.elementSdk) {
+        return;
+      }
+
+      const publicTitleEl = document.getElementById('public-title');
+      const publicSubtitleEl = document.getElementById('public-subtitle');
+      const adminTitleEl = document.getElementById('admin-title');
+      const addButtonEl = document.getElementById('add-button');
+      const publicEmptyStateEl = document.getElementById('public-empty-state-text');
+      const adminEmptyStateEl = document.getElementById('admin-empty-state-text');
+      const footerEl = document.getElementById('footer-text');
+      const appWrapper = document.getElementById('app-wrapper');
+      const toggleBtn = document.getElementById('toggle-view-btn');
+
+      async function onConfigChange(config) {
+        const bgColor = getConfigValue(config, "background_color");
+        const surfaceColor = getConfigValue(config, "surface_color");
+        const textColor = getConfigValue(config, "text_color");
+        const primaryActionColor = getConfigValue(config, "primary_action_color");
+        const secondaryActionColor = getConfigValue(config, "secondary_action_color");
+        const fontFamily = getConfigValue(config, "font_family");
+        const baseFontSize = getConfigValue(config, "font_size");
+
+        const fontStack = `${fontFamily}, system-ui, sans-serif`;
+
+        appWrapper.style.backgroundColor = bgColor;
+        appWrapper.style.color = textColor;
+
+        if (publicTitleEl) {
+          publicTitleEl.textContent = getConfigValue(config, "public_title");
+          publicTitleEl.style.fontFamily = fontStack;
+          publicTitleEl.style.fontSize = (baseFontSize * 1.9) + "px";
+        }
+
+        if (publicSubtitleEl) {
+          publicSubtitleEl.textContent = getConfigValue(config, "public_subtitle");
+          publicSubtitleEl.style.fontFamily = fontStack;
+          publicSubtitleEl.style.fontSize = (baseFontSize * 1.05) + "px";
+        }
+
+        if (adminTitleEl) {
+          adminTitleEl.textContent = getConfigValue(config, "admin_title");
+          adminTitleEl.style.fontFamily = fontStack;
+          adminTitleEl.style.fontSize = (baseFontSize * 1.9) + "px";
+        }
+
+        if (addButtonEl) {
+          addButtonEl.textContent = getConfigValue(config, "add_button_text");
+          addButtonEl.style.fontFamily = fontStack;
+          addButtonEl.style.fontSize = (baseFontSize * 0.95) + "px";
+          addButtonEl.style.backgroundColor = primaryActionColor;
+        }
+
+        if (publicEmptyStateEl) {
+          publicEmptyStateEl.textContent = getConfigValue(config, "empty_state_text");
+          publicEmptyStateEl.style.fontFamily = fontStack;
+          publicEmptyStateEl.style.fontSize = baseFontSize + "px";
+          publicEmptyStateEl.style.color = secondaryActionColor;
+        }
+
+        if (adminEmptyStateEl) {
+          adminEmptyStateEl.textContent = getConfigValue(config, "empty_state_text");
+          adminEmptyStateEl.style.fontFamily = fontStack;
+          adminEmptyStateEl.style.fontSize = baseFontSize + "px";
+          adminEmptyStateEl.style.color = secondaryActionColor;
+        }
+
+        if (footerEl) {
+          footerEl.textContent = getConfigValue(config, "footer_text");
+          footerEl.style.fontFamily = fontStack;
+          footerEl.style.fontSize = (baseFontSize * 0.9) + "px";
+          footerEl.style.color = secondaryActionColor;
+        }
+
+        if (toggleBtn) {
+          toggleBtn.style.backgroundColor = secondaryActionColor;
+          toggleBtn.style.fontFamily = fontStack;
+          toggleBtn.style.fontSize = (baseFontSize * 0.9) + "px";
+        }
+
+        const publicCards = document.querySelectorAll('.public-card .card-content');
+        publicCards.forEach(card => {
+          card.style.backgroundColor = surfaceColor;
+        });
+
+        const cardTitles = document.querySelectorAll('.public-card .card-title');
+        cardTitles.forEach(title => {
+          title.style.fontFamily = fontStack;
+          title.style.fontSize = (baseFontSize * 1.1) + "px";
+        });
+
+        const cardLinks = document.querySelectorAll('.public-card .card-link');
+        cardLinks.forEach(link => {
+          link.style.fontFamily = fontStack;
+          link.style.fontSize = (baseFontSize * 0.95) + "px";
+          link.style.color = primaryActionColor;
+          link.onmouseenter = () => {
+            link.style.textDecoration = "underline";
+            link.style.color = secondaryActionColor;
+          };
+          link.onmouseleave = () => {
+            link.style.textDecoration = "none";
+            link.style.color = primaryActionColor;
+          };
+        });
+
+        const adminCards = document.querySelectorAll('.admin-card');
+        adminCards.forEach(card => {
+          card.style.backgroundColor = surfaceColor;
+        });
+
+        const editBtns = document.querySelectorAll('.edit-btn');
+        editBtns.forEach(btn => {
+          btn.style.backgroundColor = primaryActionColor;
+          btn.style.color = bgColor;
+        });
+
+        const deleteBtns = document.querySelectorAll('.delete-btn');
+        deleteBtns.forEach(btn => {
+          btn.style.backgroundColor = secondaryActionColor;
+          btn.style.color = textColor;
+        });
+
+        const formContainer = document.getElementById('form-container');
+        if (formContainer) {
+          formContainer.style.backgroundColor = surfaceColor;
+        }
+      }
+
+      function mapToCapabilities(config) {
+        return {
+          recolorables: [
+            {
+              get: () => getConfigValue(config, "background_color"),
+              set: (value) => {
+                config.background_color = value;
+                window.elementSdk.setConfig({ background_color: value });
+              }
+            },
+            {
+              get: () => getConfigValue(config, "surface_color"),
+              set: (value) => {
+                config.surface_color = value;
+                window.elementSdk.setConfig({ surface_color: value });
+              }
+            },
+            {
+              get: () => getConfigValue(config, "text_color"),
+              set: (value) => {
+                config.text_color = value;
+                window.elementSdk.setConfig({ text_color: value });
+              }
+            },
+            {
+              get: () => getConfigValue(config, "primary_action_color"),
+              set: (value) => {
+                config.primary_action_color = value;
+                window.elementSdk.setConfig({ primary_action_color: value });
+              }
+            },
+            {
+              get: () => getConfigValue(config, "secondary_action_color"),
+              set: (value) => {
+                config.secondary_action_color = value;
+                window.elementSdk.setConfig({ secondary_action_color: value });
+              }
+            }
+          ],
+          borderables: [],
+          fontEditable: {
+            get: () => getConfigValue(config, "font_family"),
+            set: (value) => {
+              config.font_family = value;
+              window.elementSdk.setConfig({ font_family: value });
+            }
+          },
+          fontSizeable: {
+            get: () => getConfigValue(config, "font_size"),
+            set: (value) => {
+              config.font_size = value;
+              window.elementSdk.setConfig({ font_size: value });
+            }
+          }
+        };
+      }
+
+      function mapToEditPanelValues(config) {
+        const map = new Map();
+        map.set("public_title", getConfigValue(config, "public_title"));
+        map.set("public_subtitle", getConfigValue(config, "public_subtitle"));
+        map.set("admin_title", getConfigValue(config, "admin_title"));
+        map.set("add_button_text", getConfigValue(config, "add_button_text"));
+        map.set("empty_state_text", getConfigValue(config, "empty_state_text"));
+        map.set("footer_text", getConfigValue(config, "footer_text"));
+        return map;
+      }
+
+      window.elementSdk.init({
+        defaultConfig,
+        onConfigChange,
+        mapToCapabilities,
+        mapToEditPanelValues
+      });
+    }
+
+    (function init() {
+      if (document.readyState === "complete" || document.readyState === "interactive") {
+        initDataSdk();
+        setupElementSdk();
+      } else {
+        document.addEventListener("DOMContentLoaded", () => {
+          initDataSdk();
+          setupElementSdk();
+        });
+      }
+    })();
+  </script>
+  <style>@view-transition { navigation: auto; }</style>
+ </head>
+ <body class="w-full h-full m-0 p-0">
+  <div id="app-wrapper" class="w-full min-h-full px-4 py-6"><!-- Toggle Button -->
+   <div class="fixed top-4 right-4 z-40"><button id="toggle-view-btn" onclick="toggleView()" class="flex items-center gap-2 px-4 py-2 rounded-lg font-medium shadow-lg transition-all duration-200 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:ring-offset-slate-900">
+     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path> <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+     </svg><span>Kelola Admin</span> </button>
+   </div><!-- PUBLIC VIEW -->
+   <div id="public-view">
+    <main class="w-full max-w-5xl mx-auto">
+     <header class="mb-8" aria-label="Judul Daftar Konten">
+      <h1 id="public-title" class="text-center font-bold tracking-tight mb-2 text-slate-100"><!-- Diisi via config --></h1>
+      <p id="public-subtitle" class="text-center text-slate-300 max-w-2xl mx-auto"><!-- Diisi via config --></p>
+     </header>
+     <section>
+      <h2 class="sr-only">Daftar Konten</h2>
+      <div id="public-empty-state" style="display: none;" class="text-center py-16">
+       <svg class="w-24 h-24 mx-auto mb-4 text-slate-600" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+       </svg>
+       <p id="public-empty-state-text" class="text-slate-400"><!-- Diisi via config --></p>
+      </div>
+      <div id="public-content-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6"><!-- Konten publik akan dirender di sini -->
+      </div>
+     </section>
+     <footer class="mt-8 text-center">
+      <p id="footer-text" class="text-slate-400"><!-- Footer text --></p>
+     </footer>
+    </main>
+   </div><!-- ADMIN VIEW -->
+   <div id="admin-view" class="view-hidden">
+    <main class="w-full max-w-6xl mx-auto">
+     <header class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <h1 id="admin-title" class="font-bold tracking-tight text-slate-100"><!-- Diisi via config --></h1>
+      <div class="flex flex-wrap gap-3">
+        <button id="add-button" onclick="showForm()" class="px-6 py-3 rounded-lg font-medium shadow-lg transition-all duration-200 hover:shadow-xl hover:scale-105 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:ring-offset-slate-900"> <!-- Diisi via config --> </button>
+        <button id="ad-settings-btn" onclick="showAdSettings()" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium shadow-lg transition-all duration-200 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 focus:ring-offset-slate-900">
+          <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+          </svg>
+          Pengaturan Iklan
+        </button>
+      </div>
+     </header>
+     <section>
+      <div id="admin-empty-state" style="display: none;" class="text-center py-16">
+       <svg class="w-24 h-24 mx-auto mb-4 text-slate-600" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+       </svg>
+       <p id="admin-empty-state-text" class="text-slate-400"><!-- Diisi via config --></p>
+      </div>
+      <div id="admin-content-list" class="grid grid-cols-1 gap-4"><!-- Konten admin akan dirender di sini -->
+      </div>
+     </section>
+     <!-- Ad Management Section -->
+     <section id="ad-management-section" style="display: none;" class="mt-8">
+       <div class="bg-slate-800 rounded-xl p-6">
+         <div class="flex items-center justify-between mb-6">
+           <h2 class="text-xl font-bold text-slate-100">Pengelolaan Iklan Adstera</h2>
+           <button onclick="hideAdSettings()" class="text-slate-400 hover:text-slate-200">
+             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+             </svg>
+           </button>
+         </div>
+         <form id="ad-settings-form" class="space-y-6">
+           <div>
+             <label class="block text-sm font-medium mb-2 text-slate-300">Nama Zona Iklan Adstera</label>
+             <input type="text" id="ad-zone-name" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700 text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-400" placeholder="Contoh: Sidebar_Leaderboard_728x90">
+           </div>
+           <div>
+             <label class="block text-sm font-medium mb-2 text-slate-300">ID Zona Iklan Adstera</label>
+             <input type="text" id="ad-zone-id" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700 text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-400" placeholder="Contoh: 12345">
+           </div>
+           <div>
+             <label class="block text-sm font-medium mb-2 text-slate-300">Kode Iklan Adstera (opsional)</label>
+             <textarea id="ad-code" rows="4" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700 text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-400" placeholder="Tempelkan kode iklan Adstera Anda di sini jika menggunakan metode manual"></textarea>
+           </div>
+           <div class="flex items-center">
+             <input type="checkbox" id="enable-ads" class="w-4 h-4 text-sky-500 bg-slate-900 border-slate-700 rounded focus:ring-sky-400 focus:ring-2">
+             <label for="enable-ads" class="ml-2 text-sm font-medium text-slate-300">Aktifkan Iklan</label>
+           </div>
+           <div class="flex gap-3 pt-4">
+             <button type="submit" class="flex-1 px-6 py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-sky-400">
+               Simpan Pengaturan
+             </button>
+             <button type="button" onclick="hideAdSettings()" class="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-slate-100 rounded-lg font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-slate-500">
+               Batal
+             </button>
+           </div>
+         </form>
+       </div>
+     </section>
+    </main>
+   </div>
+  </div><!-- Form Modal -->
+  <div id="form-modal" style="display: none;" class="fixed inset-0 flex items-center justify-center p-4 z-50 bg-black bg-opacity-70">
+   <div id="form-container" class="w-full max-w-2xl rounded-2xl p-6 shadow-2xl">
+    <h2 id="form-title" class="text-2xl font-bold mb-6 text-slate-100">Tambah Konten Baru</h2>
+    <form id="content-form" onsubmit="handleFormSubmit(event)">
+     <div class="mb-4"><label for="input-title" class="block text-sm font-medium mb-2 text-slate-300">Judul Konten</label> <input type="text" id="input-title" required class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700 text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-400" placeholder="Contoh: Dokumentasi Proyek">
+     </div>
+     <div class="mb-4"><label for="input-link-label" class="block text-sm font-medium mb-2 text-slate-300">Label Link</label> <input type="text" id="input-link-label" required class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700 text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-400" placeholder="Contoh: Buka dokumentasi">
+     </div>
+     <div class="mb-4"><label for="input-link-url" class="block text-sm font-medium mb-2 text-slate-300">URL Link</label> <input type="url" id="input-link-url" required class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700 text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-400" placeholder="https://example.com">
+     </div>
+     <div class="mb-6">
+       <label for="input-icon-image" class="block text-sm font-medium mb-2 text-slate-300">Upload Ikon/Gambar</label>
+       <div class="flex items-center gap-4">
+         <div class="flex-shrink-0 w-16 h-16 rounded-lg bg-slate-800 overflow-hidden flex items-center justify-center" id="preview-icon-container">
+           <svg class="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+           </svg>
+         </div>
+         <div class="flex-1">
+           <input type="file" id="input-icon-image" accept="image/*" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700 text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-400">
+           <p class="text-xs text-slate-500 mt-1">Format: JPG, PNG, GIF (maks. 2MB)</p>
+         </div>
+       </div>
+     </div>
+     <div class="flex gap-3"><button type="submit" id="submit-btn" class="flex-1 px-6 py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-sky-400"> Tambah </button> <button type="button" onclick="hideForm()" class="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-slate-100 rounded-lg font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-slate-500"> Batal </button>
+     </div>
+    </form>
+   </div>
+  </div><!-- Toast Notification -->
+  <div id="toast" class="toast"></div>
+  <script src="./main.js"></script>
+ </body>
+</html>
