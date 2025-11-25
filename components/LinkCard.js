@@ -13,6 +13,11 @@ export default function LinkCard({ link, adSettings, clickedLinks, setClickedLin
     if (e.target.tagName !== 'A' && !e.target.closest('a')) {
       e.preventDefault();
 
+      // Don't process if modal is currently open to prevent conflicts
+      if (showAdModal) {
+        return;
+      }
+
       // Check if ads are enabled and this is the first click
       if (adSettings.enabled && isFirstClick) {
         // Show ad modal
@@ -122,7 +127,11 @@ export default function LinkCard({ link, adSettings, clickedLinks, setClickedLin
     setIsFirstClick(false);
 
     setShowAdModal(false);
-    window.open(link.link_url, '_blank', 'noopener,noreferrer');
+
+    // Delay opening the link to ensure modal closes properly
+    setTimeout(() => {
+      window.open(link.link_url, '_blank', 'noopener,noreferrer');
+    }, 100);
   };
 
   const getIconElement = () => {
@@ -231,7 +240,7 @@ export default function LinkCard({ link, adSettings, clickedLinks, setClickedLin
                   className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
                   onClick={handleAdSkip}
                 >
-                  Lanjut ke Tautan ({link.link_url})
+                  Lanjut ke Tautan
                 </button>
               </div>
             </div>
