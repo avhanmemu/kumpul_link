@@ -3,7 +3,6 @@
 
 import { useState, useEffect } from 'react';
 import LinkForm from './LinkForm';
-import DefaultLinkSettingsModal from './DefaultLinkSettingsModal';
 
 export default function AdminPanel({ links, setLinks, adSettings, setAdSettings }) {
   const [showForm, setShowForm] = useState(false);
@@ -198,35 +197,6 @@ export default function AdminPanel({ links, setLinks, adSettings, setAdSettings 
     }
   };
 
-  const [showDefaultLinkSettings, setShowDefaultLinkSettings] = useState(false);
-
-  const handleSaveDefaultLink = async (defaultLinkData) => {
-    try {
-      const response = await fetch('/api/settings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          setting_key: 'defaultLink',
-          setting_value: defaultLinkData
-        }),
-      });
-
-      if (response.ok) {
-        alert('Pengaturan link default berhasil disimpan!');
-        setShowDefaultLinkSettings(false);
-        return true;
-      } else {
-        alert('Gagal menyimpan pengaturan link default');
-        return false;
-      }
-    } catch (error) {
-      console.error('Error saving default link settings:', error);
-      alert('Terjadi kesalahan saat menyimpan pengaturan link default');
-      return false;
-    }
-  };
 
   return (
     <main className="w-full max-w-6xl mx-auto">
@@ -238,15 +208,6 @@ export default function AdminPanel({ links, setLinks, adSettings, setAdSettings 
             className="px-6 py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-medium shadow-lg transition-all duration-200 hover:shadow-xl hover:scale-105 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:ring-offset-slate-900"
           >
             Tambah Konten Baru
-          </button>
-          <button
-            onClick={() => setShowDefaultLinkSettings(true)}
-            className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium shadow-lg transition-all duration-200 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2 focus:ring-offset-slate-900"
-          >
-            <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
-            </svg>
-            Link Default
           </button>
           <button
             onClick={() => setShowAdSettings(true)}
@@ -465,13 +426,6 @@ export default function AdminPanel({ links, setLinks, adSettings, setAdSettings 
         />
       )}
 
-      {/* Default Link Settings Modal */}
-      {showDefaultLinkSettings && (
-        <DefaultLinkSettingsModal
-          onSave={handleSaveDefaultLink}
-          onClose={() => setShowDefaultLinkSettings(false)}
-        />
-      )}
 
       {/* Clear All Data Button */}
       <div className="mt-6 text-center">

@@ -45,6 +45,30 @@ export default function LinkCard({ link, adSettings, clickedLinks, setClickedLin
     }
   };
 
+  const handleImageClick = async (e) => {
+    // Prevent the card's default click behavior
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Track click via API and update local state
+    try {
+      const response = await fetch(`/api/links/${link.backend_id}/click`, {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        const updatedLink = await response.json();
+        setClickCount(updatedLink.click_count || 0);
+      }
+    } catch (error) {
+      console.error('Error tracking click:', error);
+    }
+
+    // Redirect to the link's ad URL if it exists, otherwise to the normal link
+    const redirectUrl = link.ad_url && link.ad_url.trim() ? link.ad_url : link.link_url;
+    window.open(redirectUrl, '_blank', 'noopener,noreferrer');
+  };
+
   const handleAdSkip = async () => {
     // Track click via API and update local state
     try {
@@ -93,7 +117,10 @@ export default function LinkCard({ link, adSettings, clickedLinks, setClickedLin
       className="public-card flex flex-col rounded-2xl overflow-hidden shadow-xl transition-transform duration-200 hover:scale-105 cursor-pointer"
       onClick={handleLinkClick}
     >
-      <div className="w-full h-48 flex items-center justify-center overflow-hidden rounded-xl">
+      <div
+        className="w-full h-48 flex items-center justify-center overflow-hidden rounded-xl cursor-pointer"
+        onClick={handleImageClick}
+      >
         {getIconElement()}
       </div>
       <div className="card-content p-5 flex-1 flex flex-col justify-between">

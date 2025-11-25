@@ -8,37 +8,11 @@ export default function Home() {
   const [links, setLinks] = useState([]);
   const [adSettings, setAdSettings] = useState({ enabled: false });
   const [clickedLinks, setClickedLinks] = useState(new Set());
-  const [defaultLink, setDefaultLink] = useState(null);
 
   useEffect(() => {
     // Load data from API
     const fetchData = async () => {
       try {
-        // Fetch settings first to check for default link
-        const settingsResponse = await fetch('/api/settings');
-        if (settingsResponse.ok) {
-          const settingsData = await settingsResponse.json();
-          const defaultLinkSetting = settingsData.defaultLink || {
-            enabled: false,
-            url: '',
-            title: '',
-            description: ''
-          };
-
-          // Check if default link is enabled and redirect if needed
-          if (defaultLinkSetting.enabled && defaultLinkSetting.url) {
-            setDefaultLink(defaultLinkSetting);
-
-            // Check if user has already clicked the default link before
-            const hasClickedBefore = localStorage.getItem('hasClickedDefaultLink');
-            if (!hasClickedBefore) {
-              // Redirect to default link
-              window.location.href = defaultLinkSetting.url;
-              return; // Stop further execution since we're redirecting
-            }
-          }
-        }
-
         // Fetch links
         const linksResponse = await fetch('/api/links');
         if (linksResponse.ok) {
@@ -69,7 +43,6 @@ export default function Home() {
     fetchData();
   }, []);
 
-  // If default link is enabled and user has clicked before, show the normal page
   return (
     <div className="w-full min-h-screen px-4 py-6 bg-slate-900 text-slate-100">
       <div className="w-full max-w-5xl mx-auto">

@@ -16,7 +16,10 @@ export async function POST(request, { params }) {
     );
 
     // Get updated link with new click count
-    const updatedLink = await db.get('SELECT * FROM links WHERE backend_id = ?', [id]);
+    const updatedLink = await db.get(`
+      SELECT id, backend_id, title, link_label, link_url, ad_url, icon_image, click_count, created_at
+      FROM links
+      WHERE backend_id = ?`, [id]);
 
     return NextResponse.json(updatedLink);
   } catch (error) {

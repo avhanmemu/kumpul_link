@@ -8,6 +8,7 @@ export default function LinkForm({ item, onSave, onClose }) {
     title: item?.title || '',
     link_label: item?.link_label || '',
     link_url: item?.link_url || '',
+    ad_url: item?.ad_url || '',  // Menambahkan field ad_url
     icon_image: item?.icon_image || null
   });
 
@@ -74,25 +75,30 @@ export default function LinkForm({ item, onSave, onClose }) {
 
   const validate = () => {
     const newErrors = {};
-    
+
     if (!formData.title.trim()) {
       newErrors.title = 'Judul konten wajib diisi';
     }
-    
+
     if (!formData.link_label.trim()) {
       newErrors.link_label = 'Label link wajib diisi';
     }
-    
+
     if (!formData.link_url.trim()) {
       newErrors.link_url = 'URL link wajib diisi';
     } else if (!/^(https?:\/\/)/.test(formData.link_url)) {
       newErrors.link_url = 'URL harus dimulai dengan http:// atau https://';
     }
-    
+
+    // Validasi untuk ad_url hanya jika diisi
+    if (formData.ad_url && formData.ad_url.trim() && !/^(https?:\/\/)/.test(formData.ad_url.trim())) {
+      newErrors.ad_url = 'URL iklan harus dimulai dengan http:// atau https://';
+    }
+
     if (!previewImage && !item?.icon_image) {
       newErrors.icon_image = 'Silakan pilih gambar ikon';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -166,6 +172,21 @@ export default function LinkForm({ item, onSave, onClose }) {
                 placeholder="https://example.com"
               />
               {errors.link_url && <p className="text-red-400 text-sm mt-1">{errors.link_url}</p>}
+            </div>
+
+            <div>
+              <label htmlFor="ad_url" className="block text-sm font-medium mb-2 text-slate-300">URL Iklan (Opsional)</label>
+              <input
+                type="url"
+                id="ad_url"
+                name="ad_url"
+                value={formData.ad_url}
+                onChange={handleChange}
+                className={`w-full px-4 py-3 rounded-lg bg-slate-900 border ${errors.ad_url ? 'border-red-500' : 'border-slate-700'} text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-400`}
+                placeholder="https://example-iklan.com"
+              />
+              <p className="text-xs text-slate-500 mt-1">Jika diisi, klik pada gambar akan mengarah ke URL iklan ini</p>
+              {errors.ad_url && <p className="text-red-400 text-sm mt-1">{errors.ad_url}</p>}
             </div>
             
             <div>

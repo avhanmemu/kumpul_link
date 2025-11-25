@@ -5,20 +5,23 @@ import initDB from '@/lib/db';
 export async function PUT(request, { params }) {
   try {
     const { id } = await params;
-    const { title, link_label, link_url, icon_image } = await request.json();
+    const { title, link_label, link_url, ad_url, icon_image } = await request.json();
 
     const db = await initDB();
 
     // Update link
     await db.run(
       `UPDATE links
-       SET title = ?, link_label = ?, link_url = ?, icon_image = ?
+       SET title = ?, link_label = ?, link_url = ?, ad_url = ?, icon_image = ?
        WHERE backend_id = ?`,
-      [title, link_label, link_url, icon_image, id]
+      [title, link_label, link_url, ad_url || null, icon_image, id]
     );
 
     // Get updated link
-    const updatedLink = await db.get('SELECT * FROM links WHERE backend_id = ?', [id]);
+    const updatedLink = await db.get(`
+      SELECT id, backend_id, title, link_label, link_url, ad_url, icon_image, click_count, created_at
+      FROM links
+      WHERE backend_id = ?`, [id]);
 
     if (!updatedLink) {
       return NextResponse.json({ error: 'Link not found' }, { status: 404 });
@@ -54,7 +57,10 @@ export async function GET(request, { params }) {
     const db = await initDB();
 
     // Get specific link
-    const link = await db.get('SELECT * FROM links WHERE backend_id = ?', [id]);
+    const link = await db.get(`
+      SELECT id, backend_id, title, link_label, link_url, ad_url, icon_image, click_count, created_at
+      FROM links
+      WHERE backend_id = ?`, [id]);
 
     if (!link) {
       return NextResponse.json({ error: 'Link not found' }, { status: 404 });
