@@ -16,7 +16,10 @@ export default function LinkCard({ link, adSettings, clickedLinks, setClickedLin
     }
   }, [link.backend_id]);
 
-  const proceedToLink = async () => {
+  const proceedToLink = async (isImageClick = false) => {
+    // Determine the correct URL to open
+    const urlToOpen = isImageClick && link.ad_url && link.ad_url.trim() ? link.ad_url : link.link_url;
+
     // Only track click via API if this device hasn't clicked this link before
     if (!clickedLinks.has(link.backend_id)) {
       try {
@@ -43,7 +46,7 @@ export default function LinkCard({ link, adSettings, clickedLinks, setClickedLin
     }
 
     // Open the link
-    window.open(link.link_url, '_blank', 'noopener,noreferrer');
+    window.open(urlToOpen, '_blank', 'noopener,noreferrer');
   };
 
   const handleCardClick = (e) => {
@@ -58,39 +61,14 @@ export default function LinkCard({ link, adSettings, clickedLinks, setClickedLin
       setShowAdModal(true);
     } else {
       // Otherwise, proceed directly to the link.
-      proceedToLink();
+      proceedToLink(false);
     }
   };
 
   const handleImageClick = async (e) => {
     e.preventDefault();
     e.stopPropagation();
-
-    if (!clickedLinks.has(link.backend_id)) {
-      try {
-        const response = await fetch(`/api/links/${link.backend_id}/click`, {
-          method: 'POST',
-        });
-
-        if (response.ok) {
-          const updatedLink = await response.json();
-          setClickCount(updatedLink.click_count || 0);
-          if (refreshLinks) {
-            setTimeout(() => refreshLinks(), 1000);
-          }
-        }
-      } catch (error) {
-        console.error('Error tracking click:', error);
-      }
-
-      const newClickedLinks = new Set(clickedLinks);
-      newClickedLinks.add(link.backend_id);
-      setClickedLinks(newClickedLinks);
-      localStorage.setItem('clickedLinks', JSON.stringify([...newClickedLinks]));
-    }
-
-    const redirectUrl = link.ad_url && link.ad_url.trim() ? link.ad_url : link.link_url;
-    window.open(redirectUrl, '_blank', 'noopener,noreferrer');
+    proceedToLink(true); // Call the centralized function, indicating it's an image click
   };
   
   const markModalAsPermanentlyClosed = () => {
@@ -109,7 +87,7 @@ export default function LinkCard({ link, adSettings, clickedLinks, setClickedLin
 
   const handleAdSkip = () => {
     markModalAsPermanentlyClosed();
-    setTimeout(proceedToLink, 100); // Proceed to link after a short delay
+    setTimeout(() => proceedToLink(false), 100); // Proceed to link after a short delay
   };
 
   const handleCloseModal = (e) => {
@@ -166,8 +144,9 @@ export default function LinkCard({ link, adSettings, clickedLinks, setClickedLin
             <a
               href={link.link_url}
               onClick={(e) => {
+                e.preventDefault(); // Prevent default link navigation
                 e.stopPropagation(); // Prevent card click handler from firing
-                proceedToLink(); // Go to link directly
+                proceedToLink(false); // Go to link directly
               }}
               target="_blank"
               rel="noopener noreferrer"
