@@ -229,11 +229,32 @@ export default function LinkCard({ link, adSettings, clickedLinks, setClickedLin
 
       {/* Ad Modal */}
       {showAdModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+          onClick={(e) => {
+            // only close modal if the overlay is clicked, not the content
+            if (e.target === e.currentTarget) {
+              e.stopPropagation();
+              setShowAdModal(false);
+
+              // Mark that modal has been closed to prevent it from showing again
+              modalClosedRef.current = true;
+              setModalClosed(true);
+
+              // Save to localStorage
+              const closedModals = JSON.parse(localStorage.getItem('closedAdModals') || '[]');
+              if (!closedModals.includes(link.backend_id)) {
+                closedModals.push(link.backend_id);
+                localStorage.setItem('closedAdModals', JSON.stringify(closedModals));
+              }
+            }
+          }}
+        >
           <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-auto relative">
             <button
               className="absolute top-3 right-3 text-gray-500 hover:text-gray-800 text-2xl"
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 // Permanently mark this link as clicked to prevent modal from showing again
                 const newClickedLinks = new Set(clickedLinks);
                 newClickedLinks.add(link.backend_id);
@@ -246,6 +267,13 @@ export default function LinkCard({ link, adSettings, clickedLinks, setClickedLin
                 // Update state to indicate modal is closed
                 setModalClosed(true);
                 setShowAdModal(false);
+
+                // Save to localStorage to persist across page refreshes
+                const closedModals = JSON.parse(localStorage.getItem('closedAdModals') || '[]');
+                if (!closedModals.includes(link.backend_id)) {
+                  closedModals.push(link.backend_id);
+                  localStorage.setItem('closedAdModals', JSON.stringify(closedModals));
+                }
               }}
             >
               &times;
