@@ -8,18 +8,41 @@ export default function Home() {
   const [adSettings, setAdSettings] = useState({ enabled: false });
   const [clickedLinks, setClickedLinks] = useState(new Set());
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
 
-  const fetchLinks = async () => {
+  const fetchLinks = async (page = 1) => {
+    if (page === 1) {
+      setIsLoading(true);
+    } else {
+      setIsLoadingMore(true);
+    }
+
     try {
-      const res = await fetch('/api/links');
+      const res = await fetch(`/api/links/paginated?page=${page}&limit=10`);
       if (!res.ok) {
         throw new Error('Gagal mengambil data link');
       }
       const data = await res.json();
-      setLinks(data);
+
+      if (page === 1) {
+        setLinks(data.links);
+      } else {
+        setLinks(prev => [...prev, ...data.links]);
+      }
+
+      setHasMore(data.hasNextPage);
+      setCurrentPage(data.currentPage);
     } catch (err) {
       setError(err.message);
+    } finally {
+      if (page === 1) {
+        setIsLoading(false);
+      } else {
+        setIsLoadingMore(false);
+      }
     }
   };
 
@@ -38,9 +61,7 @@ export default function Home() {
 
   useEffect(() => {
     const loadInitialData = async () => {
-      setIsLoading(true);
-      await Promise.all([fetchLinks(), fetchAdSettings()]);
-      setIsLoading(false);
+      await Promise.all([fetchLinks(1), fetchAdSettings()]);
     };
 
     loadInitialData();
@@ -52,8 +73,13 @@ export default function Home() {
     }
   }, []);
 
+  const loadMore = async () => {
+    const nextPage = currentPage + 1;
+    await fetchLinks(nextPage);
+  };
+
   const refreshLinks = () => {
-    fetchLinks();
+    fetchLinks(1);
   };
 
   return (
@@ -77,18 +103,41 @@ export default function Home() {
         )}
 
         {!isLoading && !error && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {links.map((link) => (
-              <LinkCard
-                key={link.id}
-                link={link}
-                adSettings={adSettings}
-                clickedLinks={clickedLinks}
-                setClickedLinks={setClickedLinks}
-                refreshLinks={refreshLinks}
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {links.map((link) => (
+                <LinkCard
+                  key={link.backend_id || link.id}
+                  link={link}
+                  adSettings={adSettings}
+                  clickedLinks={clickedLinks}
+                  setClickedLinks={setClickedLinks}
+                  refreshLinks={refreshLinks}
+                />
+              ))}
+            </div>
+
+            {hasMore && (
+              <div className="mt-8 text-center">
+                <button
+                  onClick={loadMore}
+                  disabled={isLoadingMore}
+                  className={`px-6 py-3 bg-sky-600 hover:bg-sky-700 text-white rounded-lg transition-colors duration-200 ${
+                    isLoadingMore ? 'opacity-70 cursor-not-allowed' : ''
+                  }`}
+                >
+                  {isLoadingMore ? (
+                    <span className="flex items-center justify-center">
+                      <span className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></span>
+                      Memuat...
+                    </span>
+                  ) : (
+                    'Muat Lebih Banyak'
+                  )}
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </main>
