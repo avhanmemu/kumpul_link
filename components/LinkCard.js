@@ -17,44 +17,60 @@ export default function LinkCard({ link, adSettings, clickedLinks, setClickedLin
   }, [link.backend_id]);
 
   const proceedToLink = async (isImageClick = false) => {
-    try {
-      // Track click via API
-      const response = await fetch(`/api/links/${link.backend_id}/click`, {
-        method: 'POST',
-      });
+    // Check if this device has already clicked this link
+    if (!clickedLinks.has(link.backend_id)) {
+      try {
+        // Generate a simple device ID based on browser fingerprinting
+        const deviceId = localStorage.getItem('deviceId') ||
+                        (Date.now().toString() + Math.random().toString(36).substr(2, 9));
+        if (!localStorage.getItem('deviceId')) {
+          localStorage.setItem('deviceId', deviceId);
+        }
 
-      if (response.ok) {
-        const updatedLink = await response.json();
-        setClickCount(updatedLink.click_count || 0);
+        // Track click via API only if this device hasn't clicked before
+        const response = await fetch(`/api/links/${link.backend_id}/click`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-device-id': deviceId
+          },
+        });
 
-        // Check if this is the first click and ad should be shown
-        if (updatedLink.shouldShowAd && link.ad_url && link.ad_url.trim()) {
-          // Open the ad URL for the first click
-          window.open(link.ad_url, '_blank', 'noopener,noreferrer');
+        if (response.ok) {
+          const updatedLink = await response.json();
+          setClickCount(updatedLink.click_count || 0);
+
+          // Check if this is the first click and ad should be shown
+          if (updatedLink.shouldShowAd && link.ad_url && link.ad_url.trim()) {
+            // Open the ad URL for the first click
+            window.open(link.ad_url, '_blank', 'noopener,noreferrer');
+          } else {
+            // For subsequent clicks, open the main link URL
+            window.open(link.link_url, '_blank', 'noopener,noreferrer');
+          }
+
+          if (refreshLinks) {
+            setTimeout(() => refreshLinks(), 1000);
+          }
         } else {
-          // For subsequent clicks, open the main link URL
+          // If API call fails, just open the main link as fallback
           window.open(link.link_url, '_blank', 'noopener,noreferrer');
         }
-
-        if (refreshLinks) {
-          setTimeout(() => refreshLinks(), 1000);
-        }
-      } else {
+      } catch (error) {
+        console.error('Error tracking click:', error);
         // If API call fails, just open the main link as fallback
         window.open(link.link_url, '_blank', 'noopener,noreferrer');
       }
-    } catch (error) {
-      console.error('Error tracking click:', error);
-      // If API call fails, just open the main link as fallback
-      window.open(link.link_url, '_blank', 'noopener,noreferrer');
-    }
 
-    // Mark this link as clicked on this device for UI state
-    if (!clickedLinks.has(link.backend_id)) {
+      // Mark this link as clicked on this device for UI state
       const newClickedLinks = new Set(clickedLinks);
       newClickedLinks.add(link.backend_id);
       setClickedLinks(newClickedLinks);
       localStorage.setItem('clickedLinks', JSON.stringify([...newClickedLinks]));
+    } else {
+      // If already clicked by this device, just open the link without incrementing the counter
+      // For subsequent clicks, always open the main link URL
+      window.open(link.link_url, '_blank', 'noopener,noreferrer');
     }
   };
 
