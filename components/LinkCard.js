@@ -1,11 +1,18 @@
 // components/LinkCard.js
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 
 export default function LinkCard({ link, adSettings, clickedLinks, setClickedLinks, refreshLinks }) {
   const [showAdModal, setShowAdModal] = useState(false);
   const [isFirstClick, setIsFirstClick] = useState(!clickedLinks.has(link.backend_id));
+
+  // Cek apakah modal sudah ditutup sebelumnya dari localStorage
+  const closedModals = JSON.parse(localStorage.getItem('closedAdModals') || '[]');
+  const [modalClosed, setModalClosed] = useState(closedModals.includes(link.backend_id));
+
+  // Gunakan useRef untuk melacak apakah modal pernah ditutup
+  const modalClosedRef = useRef(closedModals.includes(link.backend_id));
   const [clickCount, setClickCount] = useState(link.click_count || 0);
 
   const handleLinkClick = async (e) => {
@@ -18,8 +25,8 @@ export default function LinkCard({ link, adSettings, clickedLinks, setClickedLin
         return;
       }
 
-      // Check if ads are enabled and this is the first click
-      if (adSettings.enabled && isFirstClick) {
+      // Check if ads are enabled, this is the first click, and modal hasn't been closed before
+      if (adSettings.enabled && isFirstClick && !modalClosedRef.current && !modalClosed) {
         // Show ad modal
         setShowAdModal(true);
 
@@ -137,6 +144,16 @@ export default function LinkCard({ link, adSettings, clickedLinks, setClickedLin
 
     // Permanently mark this link as clicked to prevent modal from showing again
     setIsFirstClick(false);
+    // Mark that modal has been closed to prevent it from showing again
+    modalClosedRef.current = true;
+    // Update state to indicate modal is closed
+    setModalClosed(true);
+    // Save to localStorage to persist across page refreshes
+    const closedModals = JSON.parse(localStorage.getItem('closedAdModals') || '[]');
+    if (!closedModals.includes(link.backend_id)) {
+      closedModals.push(link.backend_id);
+      localStorage.setItem('closedAdModals', JSON.stringify(closedModals));
+    }
 
     setShowAdModal(false);
 
@@ -223,7 +240,11 @@ export default function LinkCard({ link, adSettings, clickedLinks, setClickedLin
                 setClickedLinks(newClickedLinks);
                 localStorage.setItem('clickedLinks', JSON.stringify([...newClickedLinks]));
                 setIsFirstClick(false);
+                // Mark that modal has been closed to prevent it from showing again
+                modalClosedRef.current = true;
 
+                // Update state to indicate modal is closed
+                setModalClosed(true);
                 setShowAdModal(false);
               }}
             >
