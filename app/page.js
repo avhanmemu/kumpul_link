@@ -48,7 +48,7 @@ export default function Home() {
       <div className="w-full max-w-5xl mx-auto">
         <header className="mb-8" aria-label="Judul Daftar Konten">
           <h1 className="text-center font-bold tracking-tight mb-2 text-slate-100 text-3xl">Daftar Konten Pilihan</h1>
-          <p className="text-center text-slate-300 max-w-2xl mx-auto">Kumpulkan link penting Anda dalam satu tampilan rapi dan mudah diakses.</p>
+          <p className="text-center text-slate-300 max-w-2xl mx-auto">Konten Update Tiap Hari.</p>
         </header>
         <section>
           <h2 className="sr-only">Daftar Konten</h2>
@@ -80,7 +80,7 @@ export default function Home() {
           )}
         </section>
         <footer className="mt-8 text-center">
-          <p className="text-slate-400">Sesuaikan teks dan warna dari panel edit di Canva.</p>
+          
         </footer>
       </div>
     </div>
