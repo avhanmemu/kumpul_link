@@ -18,6 +18,16 @@ export default function LinkCard({ link, adSettings, clickedLinks, setClickedLin
         // Show ad modal
         setShowAdModal(true);
 
+        // Add Adstera script if zoneId is available
+        if (adSettings.zoneId && !document.querySelector(`script[data-zone="${adSettings.zoneId}"]`)) {
+          const script = document.createElement('script');
+          script.type = 'text/javascript';
+          script.async = true;
+          script.src = `https://www.effectivegatecpm.com/zone/${adSettings.zoneId}.js`;
+          script.setAttribute('data-zone', adSettings.zoneId);
+          document.head.appendChild(script);
+        }
+
         // Mark as clicked
         const newClickedLinks = new Set(clickedLinks);
         newClickedLinks.add(link.backend_id);
@@ -170,9 +180,13 @@ export default function LinkCard({ link, adSettings, clickedLinks, setClickedLin
               <div className="ad-content-container h-64 bg-gray-100 rounded-lg flex items-center justify-center mb-4">
                 {adSettings.adCode ? (
                   <div dangerouslySetInnerHTML={{ __html: adSettings.adCode }} />
+                ) : adSettings.zoneId ? (
+                  <div id={`nasi_zone_${adSettings.zoneId}`} className="w-full h-full">
+                    {/* Ad container for Adstera script - will be populated by Adstera script */}
+                  </div>
                 ) : (
                   <div className="text-center text-gray-500">
-                    Iklan Adstera Zone: {adSettings.zoneName || adSettings.zoneId}
+                    Iklan sedang dimuat...
                   </div>
                 )}
               </div>
