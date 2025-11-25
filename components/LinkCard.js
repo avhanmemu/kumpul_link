@@ -35,18 +35,26 @@ export default function LinkCard({ link, adSettings, clickedLinks, setClickedLin
         localStorage.setItem('clickedLinks', JSON.stringify([...newClickedLinks]));
         setIsFirstClick(false);
       } else {
-        // Track click via API and update local state
-        try {
-          const response = await fetch(`/api/links/${link.backend_id}/click`, {
-            method: 'POST',
-          });
+        // Only track click via API if this device hasn't clicked this link before
+        if (!clickedLinks.has(link.backend_id)) {
+          try {
+            const response = await fetch(`/api/links/${link.backend_id}/click`, {
+              method: 'POST',
+            });
 
-          if (response.ok) {
-            const updatedLink = await response.json();
-            setClickCount(updatedLink.click_count || 0);
+            if (response.ok) {
+              const updatedLink = await response.json();
+              setClickCount(updatedLink.click_count || 0);
+            }
+          } catch (error) {
+            console.error('Error tracking click:', error);
           }
-        } catch (error) {
-          console.error('Error tracking click:', error);
+
+          // Mark this link as clicked on this device
+          const newClickedLinks = new Set(clickedLinks);
+          newClickedLinks.add(link.backend_id);
+          setClickedLinks(newClickedLinks);
+          localStorage.setItem('clickedLinks', JSON.stringify([...newClickedLinks]));
         }
 
         // Open the link
@@ -60,18 +68,26 @@ export default function LinkCard({ link, adSettings, clickedLinks, setClickedLin
     e.preventDefault();
     e.stopPropagation();
 
-    // Track click via API and update local state
-    try {
-      const response = await fetch(`/api/links/${link.backend_id}/click`, {
-        method: 'POST',
-      });
+    // Only track click via API if this device hasn't clicked this link before
+    if (!clickedLinks.has(link.backend_id)) {
+      try {
+        const response = await fetch(`/api/links/${link.backend_id}/click`, {
+          method: 'POST',
+        });
 
-      if (response.ok) {
-        const updatedLink = await response.json();
-        setClickCount(updatedLink.click_count || 0);
+        if (response.ok) {
+          const updatedLink = await response.json();
+          setClickCount(updatedLink.click_count || 0);
+        }
+      } catch (error) {
+        console.error('Error tracking click:', error);
       }
-    } catch (error) {
-      console.error('Error tracking click:', error);
+
+      // Mark this link as clicked on this device
+      const newClickedLinks = new Set(clickedLinks);
+      newClickedLinks.add(link.backend_id);
+      setClickedLinks(newClickedLinks);
+      localStorage.setItem('clickedLinks', JSON.stringify([...newClickedLinks]));
     }
 
     // Redirect to the link's ad URL if it exists, otherwise to the normal link
@@ -80,25 +96,29 @@ export default function LinkCard({ link, adSettings, clickedLinks, setClickedLin
   };
 
   const handleAdSkip = async () => {
-    // Track click via API and update local state
-    try {
-      const response = await fetch(`/api/links/${link.backend_id}/click`, {
-        method: 'POST',
-      });
+    // Only track click via API if this device hasn't clicked this link before
+    if (!clickedLinks.has(link.backend_id)) {
+      try {
+        const response = await fetch(`/api/links/${link.backend_id}/click`, {
+          method: 'POST',
+        });
 
-      if (response.ok) {
-        const updatedLink = await response.json();
-        setClickCount(updatedLink.click_count || 0);
+        if (response.ok) {
+          const updatedLink = await response.json();
+          setClickCount(updatedLink.click_count || 0);
+        }
+      } catch (error) {
+        console.error('Error tracking click:', error);
       }
-    } catch (error) {
-      console.error('Error tracking click:', error);
+
+      // Mark this link as clicked on this device
+      const newClickedLinks = new Set(clickedLinks);
+      newClickedLinks.add(link.backend_id);
+      setClickedLinks(newClickedLinks);
+      localStorage.setItem('clickedLinks', JSON.stringify([...newClickedLinks]));
     }
 
     // Permanently mark this link as clicked to prevent modal from showing again
-    const newClickedLinks = new Set(clickedLinks);
-    newClickedLinks.add(link.backend_id);
-    setClickedLinks(newClickedLinks);
-    localStorage.setItem('clickedLinks', JSON.stringify([...newClickedLinks]));
     setIsFirstClick(false);
 
     setShowAdModal(false);
