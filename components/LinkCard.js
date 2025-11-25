@@ -94,6 +94,13 @@ export default function LinkCard({ link, adSettings, clickedLinks, setClickedLin
       console.error('Error tracking click:', error);
     }
 
+    // Permanently mark this link as clicked to prevent modal from showing again
+    const newClickedLinks = new Set(clickedLinks);
+    newClickedLinks.add(link.backend_id);
+    setClickedLinks(newClickedLinks);
+    localStorage.setItem('clickedLinks', JSON.stringify([...newClickedLinks]));
+    setIsFirstClick(false);
+
     setShowAdModal(false);
     window.open(link.link_url, '_blank', 'noopener,noreferrer');
   };
@@ -168,7 +175,16 @@ export default function LinkCard({ link, adSettings, clickedLinks, setClickedLin
           <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-auto relative">
             <button
               className="absolute top-3 right-3 text-gray-500 hover:text-gray-800 text-2xl"
-              onClick={() => setShowAdModal(false)}
+              onClick={() => {
+                // Permanently mark this link as clicked to prevent modal from showing again
+                const newClickedLinks = new Set(clickedLinks);
+                newClickedLinks.add(link.backend_id);
+                setClickedLinks(newClickedLinks);
+                localStorage.setItem('clickedLinks', JSON.stringify([...newClickedLinks]));
+                setIsFirstClick(false);
+
+                setShowAdModal(false);
+              }}
             >
               &times;
             </button>
