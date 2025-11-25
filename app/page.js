@@ -8,6 +8,7 @@ export default function Home() {
   const [links, setLinks] = useState([]);
   const [adSettings, setAdSettings] = useState({ enabled: false });
   const [clickedLinks, setClickedLinks] = useState(new Set());
+  const [lastUpdate, setLastUpdate] = useState(Date.now());
 
   useEffect(() => {
     // Load data from API
@@ -40,15 +41,37 @@ export default function Home() {
       }
     };
 
+    // Fetch initial data
     fetchData();
-  }, []);
+
+    // Set up auto-refresh every 30 seconds
+    const interval = setInterval(fetchData, 30000);
+
+    // Cleanup interval on component unmount
+    return () => clearInterval(interval);
+  }, [lastUpdate]); // Include lastUpdate to allow manual refresh
+
+  // Function to manually refresh data
+  const refreshData = () => {
+    setLastUpdate(Date.now());
+  };
 
   return (
     <div className="w-full min-h-screen px-4 py-6 bg-slate-900 text-slate-100">
       <div className="w-full max-w-5xl mx-auto">
         <header className="mb-8" aria-label="Judul Daftar Konten">
-          <h1 className="text-center font-bold tracking-tight mb-2 text-slate-100 text-3xl">Daftar Konten Pilihan</h1>
-          <p className="text-center text-slate-300 max-w-2xl mx-auto">Konten Update Tiap Hari.</p>
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-center font-bold tracking-tight mb-2 text-slate-100 text-3xl sm:text-left">Daftar Konten Pilihan</h1>
+              <p className="text-center text-slate-300 max-w-2xl mx-auto sm:text-left">Konten Update Tiap Hari.</p>
+            </div>
+            <button
+              onClick={refreshData}
+              className="px-4 py-2 bg-sky-600 hover:bg-sky-700 rounded-lg text-sm font-medium transition-colors duration-200"
+            >
+              Refresh
+            </button>
+          </div>
         </header>
         <section>
           <h2 className="sr-only">Daftar Konten</h2>
@@ -71,6 +94,7 @@ export default function Home() {
                   adSettings={adSettings}
                   clickedLinks={clickedLinks}
                   setClickedLinks={setClickedLinks}
+                  refreshLinks={refreshData} // Pass refresh function to child components
                 />
               ))}
             </div>
@@ -80,7 +104,7 @@ export default function Home() {
           )}
         </section>
         <footer className="mt-8 text-center">
-          
+          <p className="text-slate-400">Konten diperbarui otomatis setiap 30 detik</p>
         </footer>
       </div>
     </div>

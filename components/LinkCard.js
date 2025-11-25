@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 
-export default function LinkCard({ link, adSettings, clickedLinks, setClickedLinks }) {
+export default function LinkCard({ link, adSettings, clickedLinks, setClickedLinks, refreshLinks }) {
   const [showAdModal, setShowAdModal] = useState(false);
   const [isFirstClick, setIsFirstClick] = useState(!clickedLinks.has(link.backend_id));
   const [clickCount, setClickCount] = useState(link.click_count || 0);
@@ -50,6 +50,10 @@ export default function LinkCard({ link, adSettings, clickedLinks, setClickedLin
             if (response.ok) {
               const updatedLink = await response.json();
               setClickCount(updatedLink.click_count || 0);
+              // Refresh links if a parent refresh function is provided
+              if (refreshLinks) {
+                setTimeout(() => refreshLinks(), 1000); // Delay refresh to see the change
+              }
             }
           } catch (error) {
             console.error('Error tracking click:', error);
@@ -83,6 +87,10 @@ export default function LinkCard({ link, adSettings, clickedLinks, setClickedLin
         if (response.ok) {
           const updatedLink = await response.json();
           setClickCount(updatedLink.click_count || 0);
+          // Refresh links if a parent refresh function is provided
+          if (refreshLinks) {
+            setTimeout(() => refreshLinks(), 1000); // Delay refresh to see the change
+          }
         }
       } catch (error) {
         console.error('Error tracking click:', error);
@@ -111,6 +119,10 @@ export default function LinkCard({ link, adSettings, clickedLinks, setClickedLin
         if (response.ok) {
           const updatedLink = await response.json();
           setClickCount(updatedLink.click_count || 0);
+          // Refresh links if a parent refresh function is provided
+          if (refreshLinks) {
+            setTimeout(() => refreshLinks(), 1000); // Delay refresh to see the change
+          }
         }
       } catch (error) {
         console.error('Error tracking click:', error);
