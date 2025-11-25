@@ -6,7 +6,7 @@ export async function GET() {
   try {
     const db = await initDB();
     const links = await db.all(`
-      SELECT id, backend_id, title, link_label, link_url, ad_url, icon_image, click_count, created_at
+      SELECT id, backend_id, title, link_label, link_url, ad_url, icon_image, click_count, ad_shown, created_at
       FROM links
       ORDER BY created_at DESC
     `);
@@ -24,12 +24,12 @@ export async function POST(request) {
 
     const db = await initDB();
     await db.run(
-      'INSERT INTO links (backend_id, title, link_label, link_url, ad_url, icon_image, click_count) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [backend_id, title, link_label, link_url, ad_url || null, icon_image, 0]
+      'INSERT INTO links (backend_id, title, link_label, link_url, ad_url, icon_image, click_count, ad_shown) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [backend_id, title, link_label, link_url, ad_url || null, icon_image, 0, 0]
     );
 
     const newLink = await db.get(`
-      SELECT id, backend_id, title, link_label, link_url, ad_url, icon_image, click_count, created_at
+      SELECT id, backend_id, title, link_label, link_url, ad_url, icon_image, click_count, ad_shown, created_at
       FROM links
       WHERE backend_id = ?`, [backend_id]);
     return NextResponse.json(newLink);

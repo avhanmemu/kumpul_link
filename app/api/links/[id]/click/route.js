@@ -7,21 +7,42 @@ export async function POST(request, { params }) {
     const { id } = await params;
     const db = await initDB();
 
-    // Update click count for the specific link
-    await db.run(
-      `UPDATE links
-       SET click_count = click_count + 1
-       WHERE backend_id = ?`,
-      [id]
-    );
-
-    // Get updated link with new click count
-    const updatedLink = await db.get(`
-      SELECT id, backend_id, title, link_label, link_url, ad_url, icon_image, click_count, created_at
+    // Get the current state of the link to check if ad has been shown before
+    const currentLink = await db.get(`
+      SELECT backend_id, ad_url, ad_shown
       FROM links
       WHERE backend_id = ?`, [id]);
 
-    return NextResponse.json(updatedLink);
+    let shouldShowAd = false;
+
+    // Check if this is the first time the link is being clicked and there's an ad URL
+    if (currentLink && currentLink.ad_url && currentLink.ad_url.trim() && !currentLink.ad_shown) {
+      // This is the first click, mark that the ad has been shown
+      await db.run(
+        `UPDATE links
+         SET click_count = click_count + 1, ad_shown = 1
+         WHERE backend_id = ?`,
+        [id]
+      );
+      shouldShowAd = true;
+    } else {
+      // Increment click count only (ad already shown before or no ad URL)
+      await db.run(
+        `UPDATE links
+         SET click_count = click_count + 1
+         WHERE backend_id = ?`,
+        [id]
+      );
+    }
+
+    // Get updated link with new click count
+    const updatedLink = await db.get(`
+      SELECT id, backend_id, title, link_label, link_url, ad_url, icon_image, click_count, ad_shown, created_at
+      FROM links
+      WHERE backend_id = ?`, [id]);
+
+    // Return whether the ad should be shown
+    return NextResponse.json({ ...updatedLink, shouldShowAd });
   } catch (error) {
     console.error('Error updating click count:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

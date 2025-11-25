@@ -17,36 +17,45 @@ export default function LinkCard({ link, adSettings, clickedLinks, setClickedLin
   }, [link.backend_id]);
 
   const proceedToLink = async (isImageClick = false) => {
-    // Determine the correct URL to open
-    const urlToOpen = isImageClick && link.ad_url && link.ad_url.trim() ? link.ad_url : link.link_url;
+    try {
+      // Track click via API
+      const response = await fetch(`/api/links/${link.backend_id}/click`, {
+        method: 'POST',
+      });
 
-    // Only track click via API if this device hasn't clicked this link before
-    if (!clickedLinks.has(link.backend_id)) {
-      try {
-        const response = await fetch(`/api/links/${link.backend_id}/click`, {
-          method: 'POST',
-        });
+      if (response.ok) {
+        const updatedLink = await response.json();
+        setClickCount(updatedLink.click_count || 0);
 
-        if (response.ok) {
-          const updatedLink = await response.json();
-          setClickCount(updatedLink.click_count || 0);
-          if (refreshLinks) {
-            setTimeout(() => refreshLinks(), 1000);
-          }
+        // Check if this is the first click and ad should be shown
+        if (updatedLink.shouldShowAd && link.ad_url && link.ad_url.trim()) {
+          // Open the ad URL for the first click
+          window.open(link.ad_url, '_blank', 'noopener,noreferrer');
+        } else {
+          // For subsequent clicks, open the main link URL
+          window.open(link.link_url, '_blank', 'noopener,noreferrer');
         }
-      } catch (error) {
-        console.error('Error tracking click:', error);
-      }
 
-      // Mark this link as clicked on this device
+        if (refreshLinks) {
+          setTimeout(() => refreshLinks(), 1000);
+        }
+      } else {
+        // If API call fails, just open the main link as fallback
+        window.open(link.link_url, '_blank', 'noopener,noreferrer');
+      }
+    } catch (error) {
+      console.error('Error tracking click:', error);
+      // If API call fails, just open the main link as fallback
+      window.open(link.link_url, '_blank', 'noopener,noreferrer');
+    }
+
+    // Mark this link as clicked on this device for UI state
+    if (!clickedLinks.has(link.backend_id)) {
       const newClickedLinks = new Set(clickedLinks);
       newClickedLinks.add(link.backend_id);
       setClickedLinks(newClickedLinks);
       localStorage.setItem('clickedLinks', JSON.stringify([...newClickedLinks]));
     }
-
-    // Open the link
-    window.open(urlToOpen, '_blank', 'noopener,noreferrer');
   };
 
   const handleCardClick = (e) => {
@@ -70,7 +79,7 @@ export default function LinkCard({ link, adSettings, clickedLinks, setClickedLin
     e.stopPropagation();
     proceedToLink(true); // Call the centralized function, indicating it's an image click
   };
-  
+
   const markModalAsPermanentlyClosed = () => {
     // Hide the modal from view
     setShowAdModal(false);
@@ -94,7 +103,7 @@ export default function LinkCard({ link, adSettings, clickedLinks, setClickedLin
     e.stopPropagation(); // Prevent the click from bubbling to the card
     markModalAsPermanentlyClosed();
   };
-  
+
   const handleOverlayClick = (e) => {
     // If the click is on the overlay itself, not the content inside
     if (e.target === e.currentTarget) {

@@ -19,7 +19,7 @@ export async function PUT(request, { params }) {
 
     // Get updated link
     const updatedLink = await db.get(`
-      SELECT id, backend_id, title, link_label, link_url, ad_url, icon_image, click_count, created_at
+      SELECT id, backend_id, title, link_label, link_url, ad_url, icon_image, click_count, ad_shown, created_at
       FROM links
       WHERE backend_id = ?`, [id]);
 
@@ -58,7 +58,7 @@ export async function GET(request, { params }) {
 
     // Get specific link
     const link = await db.get(`
-      SELECT id, backend_id, title, link_label, link_url, ad_url, icon_image, click_count, created_at
+      SELECT id, backend_id, title, link_label, link_url, ad_url, icon_image, click_count, ad_shown, created_at
       FROM links
       WHERE backend_id = ?`, [id]);
 
